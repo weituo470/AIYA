@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#061b1e">
+  <title>声波花园</title>
+  <style>
+    :root{color-scheme:dark;--mint:#67f5bd;--lime:#d8ff72;--ink:#061b1e;--fog:#c8eee3}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--ink);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#f5fffb;touch-action:none}
+    button{font:inherit;color:inherit;border:0}
+    #app,#garden{position:fixed;inset:0;width:100%;height:100%}
+    #garden{display:block;background:radial-gradient(circle at 50% 74%,#153d38 0,#081f22 42%,#041216 100%)}
+    .noise{position:fixed;inset:0;pointer-events:none;opacity:.16;background-image:linear-gradient(120deg,transparent 48%,rgba(255,255,255,.08) 50%,transparent 52%);background-size:11px 11px;mix-blend-mode:soft-light}
+    .hud{position:fixed;z-index:3;left:0;right:0;top:0;padding:calc(15px + env(safe-area-inset-top)) 18px 0;display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none}
+    .hud div{display:grid;gap:3px}.hud div:nth-child(2){text-align:right}.label{font-size:10px;letter-spacing:.18em;color:#9cc9bd}.value{font-size:25px;line-height:1;font-weight:850}.mode{position:fixed;z-index:3;left:50%;top:calc(18px + env(safe-area-inset-top));transform:translateX(-50%);padding:7px 11px;border:1px solid rgba(126,255,204,.24);border-radius:999px;background:rgba(4,26,28,.58);backdrop-filter:blur(10px);font-size:10px;letter-spacing:.08em;color:#c7f5e8;white-space:nowrap}
+    .energy{position:fixed;z-index:3;left:20px;right:20px;bottom:calc(28px + env(safe-area-inset-bottom));display:grid;gap:9px;pointer-events:none}.energyTop{display:flex;justify-content:space-between;color:#bde8dc;font-size:11px}.track{height:8px;border-radius:99px;background:rgba(229,255,246,.12);overflow:hidden}.fill{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--mint),var(--lime));box-shadow:0 0 24px rgba(103,245,189,.7);transition:width .09s linear}.hint{text-align:center;font-size:12px;color:#d8f5ed;min-height:18px;text-shadow:0 1px 8px #041416}
+    .cover{position:fixed;z-index:5;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:34px 25px calc(34px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(3,17,20,.08),rgba(3,17,20,.25) 36%,rgba(3,17,20,.96) 82%);transition:opacity .45s ease,visibility .45s ease}.cover.hide{opacity:0;visibility:hidden;pointer-events:none}.kicker{font-size:11px;letter-spacing:.26em;font-weight:800;color:var(--mint)}h1{margin:10px 0 12px;font-size:clamp(52px,15vw,76px);line-height:.88;letter-spacing:-.09em}h1 span{display:block;color:var(--lime)}.lead{margin:0 0 20px;max-width:330px;color:#bfddd5;font-size:15px;line-height:1.7}.legend{display:flex;gap:16px;margin:0 0 24px;font-size:11px;color:#96bdb2}.legend b{display:block;margin-bottom:4px;color:#f5fffb;font-size:14px}.primary{width:100%;min-height:58px;border-radius:18px;background:var(--mint);color:#04221d;font-weight:900;font-size:17px;box-shadow:0 14px 38px rgba(52,236,172,.22)}.sub{margin:12px 0 0;text-align:center;font-size:10px;line-height:1.5;color:#7ca198}
+    .result{position:fixed;z-index:6;inset:0;display:none;place-items:center;padding:24px;background:rgba(2,14,16,.86);backdrop-filter:blur(14px)}.result.show{display:grid}.resultInner{width:min(100%,350px);text-align:center}.result .kicker{margin-bottom:12px}.result h2{margin:0;font-size:48px;line-height:.95;letter-spacing:-.07em}.result p{margin:16px auto 22px;color:#bddbd3;line-height:1.7}.result strong{color:var(--lime)}
+    .pulse{position:fixed;z-index:4;left:50%;bottom:90px;transform:translateX(-50%);padding:10px 14px;border-radius:14px;background:rgba(216,255,114,.94);color:#142314;font-size:12px;font-weight:900;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}.pulse.show{opacity:1;transform:translate(-50%,-8px)}
+  </style>
+</head>
+<body>
+  <main id="app" aria-label="声波花园互动作品">
+    <canvas id="garden"></canvas><div class="noise"></div>
+    <div class="hud"><div><span class="label">绽放</span><strong class="value" id="blooms">0</strong></div><div><span class="label">剩余</span><strong class="value" id="time">40</strong></div></div>
+    <div class="mode" id="mode">等待唤醒</div>
+    <div class="energy"><div class="energyTop"><span>声音能量</span><span id="tone">安静</span></div><div class="track"><div class="fill" id="fill"></div></div><div class="hint" id="hint">允许麦克风后，用声音让植物发光</div></div>
+    <section class="cover" id="cover">
+      <div class="kicker">AIYA SENSORY ART · 01</div>
+      <h1>声波<span>花园</span></h1>
+      <p class="lead">你的声音不是命令，而是阳光。音量决定生长速度，音高改变花朵颜色。</p>
+      <div class="legend"><span><b>轻声</b>唤醒嫩芽</span><span><b>持续发声</b>让花绽放</span><span><b>不同音高</b>改变色彩</span></div>
+      <button class="primary" id="start">唤醒花园</button>
+      <p class="sub">仅在本机分析声音，不录音、不上传。拒绝权限后可按住屏幕试玩。</p>
+    </section>
+    <div class="pulse" id="pulse">一朵新花绽放了</div>
+    <section class="result" id="result"><div class="resultInner"><div class="kicker">40 秒声音肖像</div><h2 id="resultTitle">花园醒了</h2><p id="resultText"></p><button class="primary" id="again">再种一座花园</button></div></section>
+  </main>
+  <script>
+    (()=>{
+      const canvas=document.getElementById('garden'),ctx=canvas.getContext('2d');
+      const cover=document.getElementById('cover'),result=document.getElementById('result');
+      const fill=document.getElementById('fill'),modeEl=document.getElementById('mode'),hint=document.getElementById('hint'),toneEl=document.getElementById('tone');
+      const bloomsEl=document.getElementById('blooms'),timeEl=document.getElementById('time'),pulse=document.getElementById('pulse');
+      let w=0,h=0,dpr=1,running=false,startAt=0,last=0,energy=0,smoothEnergy=0,pitch=0,blooms=0,growth=0,pointerDown=false;
+      let audioContext=null,analyser=null,stream=null,freqData=null,timeData=null,raf=0,pulseTimer=0;
+      const plants=[],motes=[];
+      function resize(){dpr=Math.min(devicePixelRatio||1,2);w=innerWidth;h=innerHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+      function seed(){plants.length=0;motes.length=0;for(let i=0;i<7;i++)plants.push({x:w*(.08+i*.14)+Math.random()*12,y:h*.82+Math.random()*26,height:45+Math.random()*70,lean:(Math.random()-.5)*25,hue:145+Math.random()*28,open:Math.random()*.25});for(let i=0;i<34;i++)motes.push({x:Math.random()*w,y:Math.random()*h,s:.4+Math.random()*1.7,a:.15+Math.random()*.5,phase:Math.random()*7});}
+      function roundRect(x,y,rw,rh,r){ctx.beginPath();ctx.roundRect(x,y,rw,rh,r);ctx.fill();}
+      function drawPlant(p,index,t){
+        const boost=running?Math.min(1,p.open+smoothEnergy*.32):p.open;const stem=p.height*(.55+boost*.55);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.lean*Math.PI/180*.25);
+        ctx.strokeStyle=`hsla(${p.hue},55%,54%,${.42+boost*.5})`;ctx.lineWidth=2.2+boost*1.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(p.lean*.35,-stem*.55,p.lean,-stem);ctx.stroke();
+        for(let j=0;j<3;j++){const yy=-stem*(.3+j*.2),side=(j%2?1:-1);ctx.fillStyle=`hsla(${p.hue+8},65%,54%,${.3+boost*.55})`;ctx.beginPath();ctx.ellipse(p.lean*(.3+j*.15)+side*9,yy,4+boost*5,10+boost*7,side*.7,0,Math.PI*2);ctx.fill();}
+        if(boost>.28){const fx=p.lean,fy=-stem,r=4+boost*12+Math.sin(t*.003+index)*1.2;ctx.shadowColor=`hsla(${p.hue+pitch*.12},90%,68%,.9)`;ctx.shadowBlur=12+boost*18;for(let k=0;k<6;k++){const a=k*Math.PI/3+t*.00018*(index%2?1:-1);ctx.fillStyle=`hsla(${p.hue+pitch*.16+k*3},82%,${62+k%2*6}%,${.45+boost*.5})`;ctx.beginPath();ctx.ellipse(fx+Math.cos(a)*r*.72,fy+Math.sin(a)*r*.72,r*.46,r*.23,a,0,Math.PI*2);ctx.fill();}ctx.fillStyle='#f5ffb4';ctx.beginPath();ctx.arc(fx,fy,2.5+boost*3,0,Math.PI*2);ctx.fill();}
+        ctx.restore();
+      }
+      function draw(t){
+        const grad=ctx.createRadialGradient(w*.5,h*.74,20,w*.5,h*.62,Math.max(w,h)*.74);grad.addColorStop(0,`hsla(${154+pitch*.08},35%,22%,1)`);grad.addColorStop(.48,'#0a2929');grad.addColorStop(1,'#031115');ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+        ctx.fillStyle='rgba(183,255,222,.035)';for(let y=90;y<h;y+=42){ctx.fillRect(0,y,w,1)}
+        motes.forEach((m,i)=>{m.y-=.05+smoothEnergy*.28;if(m.y<-5){m.y=h+5;m.x=Math.random()*w}m.x+=Math.sin(t*.0007+m.phase)*.08;ctx.fillStyle=`rgba(184,255,220,${m.a*(.3+smoothEnergy)})`;ctx.beginPath();ctx.arc(m.x,m.y,m.s+smoothEnergy*1.2,0,Math.PI*2);ctx.fill();});
+        ctx.fillStyle='rgba(4,20,18,.9)';ctx.beginPath();ctx.ellipse(w*.5,h*.9,w*.62,h*.15,0,0,Math.PI*2);ctx.fill();plants.forEach((p,i)=>drawPlant(p,i,t));
+        if(smoothEnergy>.08){ctx.strokeStyle=`rgba(116,255,199,${smoothEnergy*.18})`;ctx.lineWidth=1;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(w*.5,h*.57,42+i*38+(t*.04%38),0,Math.PI*2);ctx.stroke();}}
+      }
+      function readMic(){
+        if(!analyser)return;analyser.getByteTimeDomainData(timeData);let sum=0;for(const v of timeData){const n=(v-128)/128;sum+=n*n}energy=Math.min(1,Math.sqrt(sum/timeData.length)*4.8);
+        analyser.getByteFrequencyData(freqData);let max=0,idx=0;for(let i=3;i<freqData.length*.55;i++){if(freqData[i]>max){max=freqData[i];idx=i}}pitch=idx*audioContext.sampleRate/analyser.fftSize;
+      }
+      function sound(kind){if(!audioContext)return;const o=audioContext.createOscillator(),g=audioContext.createGain();o.connect(g);g.connect(audioContext.destination);o.type='sine';o.frequency.setValueAtTime(kind==='bloom'?420:260,audioContext.currentTime);o.frequency.exponentialRampToValueAtTime(kind==='bloom'?780:180,audioContext.currentTime+.22);g.gain.setValueAtTime(.0001,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(.055,audioContext.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,audioContext.currentTime+.3);o.start();o.stop(audioContext.currentTime+.32)}
+      function bloom(){blooms++;bloomsEl.textContent=blooms;const p=plants[(blooms-1)%plants.length];p.open=1;p.hue=135+Math.min(190,pitch*.18);sound('bloom');navigator.vibrate?.([18,35,28]);pulse.classList.add('show');clearTimeout(pulseTimer);pulseTimer=setTimeout(()=>pulse.classList.remove('show'),900)}
+      function frame(t){
+        if(running){if(analyser)readMic();else energy=pointerDown?.72:0;smoothEnergy+=(energy-smoothEnergy)*.16;growth+=Math.max(0,smoothEnergy-.06)*.018;if(growth>=1){growth=0;bloom()}const remain=Math.max(0,40-(t-startAt)/1000);timeEl.textContent=Math.ceil(remain);fill.style.width=Math.round(smoothEnergy*100)+'%';toneEl.textContent=smoothEnergy<.06?'安静':pitch>420?'高音闪光':pitch>190?'温暖中音':'低音生长';if(remain<=0)finish()}else{smoothEnergy+=(0-smoothEnergy)*.08}draw(t);last=t;raf=requestAnimationFrame(frame)}
+      async function begin(){
+        cover.classList.add('hide');result.classList.remove('show');blooms=0;growth=0;bloomsEl.textContent='0';timeEl.textContent='40';plants.forEach(p=>p.open=.08+Math.random()*.12);startAt=performance.now();running=true;
+        try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}});audioContext=new (window.AudioContext||window.webkitAudioContext)();await audioContext.resume();analyser=audioContext.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.74;audioContext.createMediaStreamSource(stream).connect(analyser);freqData=new Uint8Array(analyser.frequencyBinCount);timeData=new Uint8Array(analyser.fftSize);modeEl.textContent='麦克风 · 本机分析';hint.textContent='轻声、哼唱或吹口哨，观察花园如何回应';}
+        catch(error){analyser=null;modeEl.textContent='触摸模式';hint.textContent='按住画面蓄积能量，也能让花朵绽放';try{audioContext=new (window.AudioContext||window.webkitAudioContext)();await audioContext.resume()}catch(_){audioContext=null}}
+      }
+      function finish(){running=false;energy=0;stream?.getTracks().forEach(track=>track.stop());stream=null;analyser=null;const title=blooms>=8?'繁花盛放':blooms>=5?'花园醒了':'第一颗嫩芽';document.getElementById('resultTitle').textContent=title;document.getElementById('resultText').innerHTML=`你的声音让 <strong>${blooms}</strong> 朵花绽放。每一种音量与音高，都留下了不同的颜色。`;result.classList.add('show');modeEl.textContent='声音肖像完成'}
+      addEventListener('resize',()=>{resize();seed()});addEventListener('pointerdown',()=>{pointerDown=true});addEventListener('pointerup',()=>{pointerDown=false});addEventListener('pointercancel',()=>{pointerDown=false});
+      document.getElementById('start').addEventListener('click',begin);document.getElementById('again').addEventListener('click',begin);addEventListener('contextmenu',e=>e.preventDefault());addEventListener('pagehide',()=>{running=false;cancelAnimationFrame(raf);stream?.getTracks().forEach(track=>track.stop());audioContext?.close()});
+      resize();seed();raf=requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

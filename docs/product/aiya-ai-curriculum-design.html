@@ -1,0 +1,2362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="AIYA AI 编程教育整体课程设计：从创造启蒙，到理解计算机世界、AI 协作开发和独立作品。" />
+  <title>AIYA AI 编程教育 · 课程设计蓝图</title>
+  <style>
+    :root {
+      --ink: #08231c;
+      --ink-soft: #405f56;
+      --paper: #f5f8f4;
+      --paper-deep: #e8f1eb;
+      --white: #ffffff;
+      --mint: #13c987;
+      --mint-deep: #079864;
+      --mint-pale: #c9f6e4;
+      --sun: #ffe36c;
+      --coral: #ff886f;
+      --blue: #76a7ff;
+      --line: rgba(8, 35, 28, 0.14);
+      --shadow: 0 24px 80px rgba(8, 35, 28, 0.11);
+      --radius: 28px;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 18%, rgba(19, 201, 135, 0.08), transparent 26rem),
+        var(--paper);
+      font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+
+    .progress {
+      position: fixed;
+      z-index: 80;
+      inset: 0 auto auto 0;
+      width: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--mint), var(--sun));
+      box-shadow: 0 0 18px rgba(19, 201, 135, 0.55);
+    }
+
+    .site-header {
+      position: absolute;
+      z-index: 40;
+      inset: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: min(calc(100% - 48px), var(--max));
+      margin: 0 auto;
+      padding: 24px 0;
+      color: white;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 13px;
+      color: var(--ink);
+      background: var(--mint);
+      box-shadow: 0 10px 24px rgba(19, 201, 135, 0.22);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .print-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 18px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 999px;
+      color: white;
+      background: rgba(255, 255, 255, 0.08);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      backdrop-filter: blur(14px);
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .ghost-button:hover,
+    .print-button:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .hero {
+      position: relative;
+      display: grid;
+      min-height: 100svh;
+      overflow: hidden;
+      color: white;
+      background:
+        radial-gradient(circle at 77% 42%, rgba(19, 201, 135, 0.19), transparent 28rem),
+        radial-gradient(circle at 12% 90%, rgba(255, 227, 108, 0.1), transparent 30rem),
+        var(--ink);
+      isolation: isolate;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      opacity: 0.12;
+      background-image:
+        linear-gradient(rgba(255,255,255,.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.15) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: linear-gradient(to right, black, transparent 70%);
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(460px, 1.1fr);
+      gap: 48px;
+      align-items: center;
+      width: min(calc(100% - 48px), var(--max));
+      margin: auto;
+      padding: 126px 0 72px;
+    }
+
+    .hero-copy {
+      max-width: 620px;
+      animation: rise 760ms cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+      color: var(--mint-pale);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 32px;
+      height: 2px;
+      background: var(--mint);
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1, h2, h3 {
+      text-wrap: balance;
+      word-break: auto-phrase;
+    }
+
+    .manifesto strong,
+    .reuse-quote strong,
+    .project-promise strong {
+      text-wrap: balance;
+      word-break: auto-phrase;
+    }
+
+    p {
+      text-wrap: pretty;
+    }
+
+    h1 {
+      max-width: 720px;
+      margin-bottom: 32px;
+      font-size: clamp(52px, 6vw, 84px);
+      line-height: 1.04;
+      letter-spacing: -0.035em;
+    }
+
+    .hero-lead {
+      max-width: 560px;
+      margin-bottom: 34px;
+      color: rgba(255,255,255,0.74);
+      font-size: clamp(18px, 2vw, 24px);
+      line-height: 1.55;
+    }
+
+    .hero-lead strong { color: white; }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .primary-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+      padding: 0 24px;
+      border-radius: 999px;
+      color: var(--ink);
+      background: var(--mint);
+      font-weight: 900;
+      text-decoration: none;
+      box-shadow: 0 18px 40px rgba(19, 201, 135, 0.22);
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 24px 48px rgba(19, 201, 135, 0.3);
+    }
+
+    .hero-note {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      margin-top: 44px;
+      color: rgba(255,255,255,0.58);
+      font-size: 14px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--mint);
+      box-shadow: 0 0 0 8px rgba(19, 201, 135, 0.12);
+    }
+
+    .hero-map {
+      position: relative;
+      min-height: 650px;
+      animation: rise 900ms 120ms cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .orbit-label {
+      position: absolute;
+      z-index: 3;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px;
+      color: rgba(255,255,255,0.78);
+      background: rgba(255,255,255,0.055);
+      font-size: 12px;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+    }
+
+    .orbit-label i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--mint);
+    }
+
+    .orbit-a { top: 8%; left: 6%; }
+    .orbit-b { top: 23%; right: 0; }
+    .orbit-c { bottom: 18%; left: 0; }
+
+    .journey-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 30px 80px rgba(0,0,0,.24));
+    }
+
+    .pulse-node {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: pulse 3.2s ease-in-out infinite;
+    }
+
+    .pulse-node:nth-of-type(2) { animation-delay: .45s; }
+    .pulse-node:nth-of-type(3) { animation-delay: .9s; }
+
+    main { overflow: hidden; }
+
+    .section {
+      position: relative;
+      padding: 112px 24px;
+    }
+
+    .section-inner {
+      width: min(100%, var(--max));
+      margin: 0 auto;
+    }
+
+    .section-kicker {
+      margin-bottom: 14px;
+      color: var(--mint-deep);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      max-width: 1040px;
+      margin-bottom: 30px;
+      font-size: clamp(36px, 4.3vw, 60px);
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+    }
+
+    .section-intro {
+      max-width: 840px;
+      margin-bottom: 64px;
+      color: var(--ink-soft);
+      font-size: clamp(18px, 1.7vw, 20px);
+      line-height: 1.8;
+    }
+
+    .north-star {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: 72px;
+      align-items: start;
+    }
+
+    .manifesto {
+      position: sticky;
+      top: 40px;
+      padding-left: 24px;
+      border-left: 4px solid var(--mint);
+    }
+
+    .manifesto strong {
+      display: block;
+      margin-bottom: 20px;
+      font-size: clamp(28px, 3vw, 40px);
+      line-height: 1.22;
+      letter-spacing: -0.02em;
+    }
+
+    .manifesto p {
+      color: var(--ink-soft);
+      font-size: 17px;
+    }
+
+    .growth-steps {
+      border-top: 1px solid var(--line);
+    }
+
+    .growth-step {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 22px;
+      padding: 26px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .growth-step b {
+      color: var(--mint-deep);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+    }
+
+    .growth-step h3 {
+      margin-bottom: 8px;
+      font-size: 23px;
+      line-height: 1.3;
+      letter-spacing: -0.015em;
+    }
+
+    .growth-step p {
+      margin: 0;
+      color: var(--ink-soft);
+    }
+
+    .path-comparison {
+      background: #fff;
+    }
+
+    .route-compare {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      overflow: hidden;
+      margin-top: 62px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .route-column {
+      padding: 44px 48px 38px 0;
+    }
+
+    .route-column.aiya-route {
+      padding-inline: 48px;
+      color: white;
+      background: var(--ink);
+    }
+
+    .route-label {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--mint-deep);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .14em;
+    }
+
+    .aiya-route .route-label { color: var(--mint); }
+
+    .route-column h3 {
+      max-width: 470px;
+      margin-bottom: 38px;
+      font-size: clamp(30px, 3vw, 40px);
+      line-height: 1.18;
+      letter-spacing: -.02em;
+    }
+
+    .route-flow {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: route;
+    }
+
+    .route-flow li {
+      counter-increment: route;
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 16px;
+      padding: 20px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .aiya-route .route-flow li { border-color: rgba(255,255,255,.13); }
+
+    .route-flow li::before {
+      content: "0" counter(route);
+      color: var(--mint-deep);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .aiya-route .route-flow li::before { color: var(--mint); }
+    .route-flow strong { display: block; margin-bottom: 4px; font-size: 18px; }
+    .route-flow p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+    .aiya-route .route-flow p { color: rgba(255,255,255,.64); }
+
+    .route-result {
+      margin: 26px 0 0;
+      padding-top: 22px;
+      border-top: 3px solid var(--ink);
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .aiya-route .route-result {
+      color: var(--mint-pale);
+      border-color: var(--mint);
+    }
+
+    .comparison-matrix {
+      margin-top: 78px;
+    }
+
+    .matrix-heading {
+      display: grid;
+      grid-template-columns: minmax(0, .75fr) minmax(320px, 1.25fr);
+      gap: 48px;
+      align-items: end;
+      margin-bottom: 30px;
+    }
+
+    .matrix-heading h3 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.2;
+      letter-spacing: -.018em;
+    }
+
+    .matrix-heading p {
+      max-width: 650px;
+      margin: 0;
+      color: var(--ink-soft);
+      line-height: 1.75;
+    }
+
+    .compare-table-shell {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: white;
+      box-shadow: 0 20px 54px rgba(8, 35, 28, .07);
+    }
+
+    .compare-table {
+      width: 100%;
+      border-spacing: 0;
+      border-collapse: separate;
+      table-layout: fixed;
+      text-align: left;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      padding: 19px 22px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      line-height: 1.7;
+    }
+
+    .compare-table tr > :last-child { border-right: 0; }
+    .compare-table tbody tr:last-child > * { border-bottom: 0; }
+
+    .compare-table thead th {
+      padding-block: 22px;
+      color: var(--ink);
+      background: #edf3ef;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .compare-table thead th:first-child { width: 18%; }
+    .compare-table thead th:last-child {
+      color: white;
+      background: var(--ink);
+    }
+
+    .compare-table tbody th {
+      color: var(--mint-deep);
+      background: #f7faf8;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .compare-table td {
+      color: var(--ink-soft);
+      font-size: 15px;
+    }
+
+    .compare-table td:last-child {
+      color: var(--ink);
+      background: rgba(19, 201, 135, .075);
+    }
+
+    .compare-table strong {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--ink);
+      font-size: 16px;
+    }
+
+    .matrix-conclusion {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 32px;
+      margin-top: 24px;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .matrix-conclusion b {
+      color: var(--mint-deep);
+      font-size: 13px;
+      letter-spacing: .1em;
+    }
+
+    .matrix-conclusion p {
+      margin: 0;
+      color: var(--ink-soft);
+      line-height: 1.8;
+    }
+
+    .learning-accelerator {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 72px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .accelerator-step {
+      min-height: 330px;
+      padding: 32px 38px 36px 0;
+      border-right: 1px solid var(--line);
+    }
+
+    .accelerator-step + .accelerator-step { padding-left: 38px; }
+    .accelerator-step:last-child { padding-right: 0; border-right: 0; }
+
+    .accelerator-step em {
+      display: block;
+      margin-bottom: 74px;
+      color: var(--mint-deep);
+      font-style: normal;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .12em;
+    }
+
+    .accelerator-step h3 {
+      margin-bottom: 14px;
+      font-size: 28px;
+      line-height: 1.25;
+      letter-spacing: -.015em;
+    }
+
+    .accelerator-step p { margin: 0; color: var(--ink-soft); }
+
+    .self-learning-note {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 34px;
+      align-items: start;
+      margin-top: 40px;
+      padding: 30px 0;
+    }
+
+    .self-learning-note b {
+      color: var(--mint-deep);
+      font-size: 13px;
+      letter-spacing: .1em;
+    }
+
+    .self-learning-note p {
+      max-width: 820px;
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 18px;
+    }
+
+    .dark-section {
+      color: white;
+      background: var(--ink);
+    }
+
+    .dark-section .section-kicker { color: var(--mint); }
+    .dark-section .section-intro { color: rgba(255,255,255,0.64); }
+
+    .level-nav {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 18px;
+      scrollbar-width: thin;
+    }
+
+    .level-button {
+      flex: 0 0 auto;
+      min-width: 132px;
+      padding: 15px 18px;
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 18px;
+      color: rgba(255,255,255,0.65);
+      background: transparent;
+      font: inherit;
+      font-weight: 800;
+      text-align: left;
+      cursor: pointer;
+      transition: 180ms ease;
+    }
+
+    .level-button span {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .level-button:hover,
+    .level-button.active {
+      color: var(--ink);
+      border-color: var(--mint);
+      background: var(--mint);
+      transform: translateY(-3px);
+    }
+
+    .level-stage {
+      position: relative;
+      min-height: 500px;
+      margin-top: 22px;
+      border-top: 1px solid rgba(255,255,255,0.14);
+    }
+
+    .level-panel {
+      display: none;
+      grid-template-columns: 0.75fr 1.25fr;
+      gap: 64px;
+      padding-top: 56px;
+      animation: panel-in 300ms ease both;
+    }
+
+    .level-panel.active { display: grid; }
+
+    .level-number {
+      color: var(--mint);
+      font-size: clamp(92px, 12vw, 176px);
+      font-weight: 900;
+      line-height: 0.78;
+      letter-spacing: -0.09em;
+    }
+
+    .level-status {
+      display: inline-flex;
+      margin-top: 30px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      color: var(--mint-pale);
+      background: rgba(19,201,135,0.12);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .level-copy h3 {
+      margin-bottom: 20px;
+      font-size: clamp(34px, 4vw, 54px);
+      line-height: 1.16;
+      letter-spacing: -0.025em;
+    }
+
+    .level-question {
+      margin-bottom: 30px;
+      color: rgba(255,255,255,0.62);
+      font-size: 21px;
+    }
+
+    .level-facts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 28px 40px;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .level-facts b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--mint);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .level-facts p {
+      margin: 0;
+      color: rgba(255,255,255,0.76);
+    }
+
+    .spiral-layout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 28px;
+    }
+
+    .spiral {
+      position: relative;
+      min-height: 420px;
+      overflow: hidden;
+      padding: 44px;
+      border-radius: var(--radius);
+      background: var(--white);
+      box-shadow: var(--shadow);
+    }
+
+    .spiral.ai { background: #dcf8ee; }
+    .spiral.methods { background: #fff5c8; }
+
+    .spiral.methods::after {
+      border-color: rgba(255, 184, 0, 0.15);
+      box-shadow: 0 0 0 42px rgba(255, 184, 0, 0.08), 0 0 0 84px rgba(255, 184, 0, 0.04);
+    }
+
+    .spiral.methods .strand-list li::before { background: #f0a900; }
+
+    .spiral::after {
+      content: "";
+      position: absolute;
+      right: -100px;
+      bottom: -130px;
+      width: 330px;
+      height: 330px;
+      border: 46px solid rgba(19,201,135,0.12);
+      border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(19,201,135,0.07), 0 0 0 84px rgba(19,201,135,0.04);
+    }
+
+    .spiral-index {
+      color: var(--mint-deep);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+    }
+
+    .spiral h3 {
+      max-width: 460px;
+      margin: 16px 0 28px;
+      font-size: 32px;
+      line-height: 1.24;
+      letter-spacing: -0.018em;
+    }
+
+    .strand-list {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      gap: 13px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .strand-list li {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      color: var(--ink-soft);
+    }
+
+    .strand-list li::before {
+      content: "";
+      flex: 0 0 auto;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--mint);
+    }
+
+    .native-method {
+      background:
+        radial-gradient(circle at 84% 22%, rgba(255, 227, 108, .2), transparent 28rem),
+        #fffdf5;
+    }
+
+    .native-thesis {
+      display: grid;
+      grid-template-columns: .88fr 1.12fr;
+      gap: 48px;
+      align-items: stretch;
+      margin-bottom: 70px;
+    }
+
+    .reuse-quote {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 420px;
+      padding: 42px;
+      border-radius: var(--radius);
+      color: white;
+      background: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .reuse-quote span {
+      color: var(--mint);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .14em;
+    }
+
+    .reuse-quote strong {
+      display: block;
+      max-width: 520px;
+      font-size: clamp(36px, 4vw, 54px);
+      line-height: 1.16;
+      letter-spacing: -.025em;
+    }
+
+    .reuse-quote p {
+      margin: 0;
+      color: rgba(255,255,255,.62);
+      font-size: 15px;
+    }
+
+    .source-order {
+      display: grid;
+      align-content: start;
+      border-top: 1px solid var(--line);
+    }
+
+    .source-row {
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 20px;
+      padding: 22px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .source-row b {
+      color: var(--mint-deep);
+      font-size: 13px;
+      letter-spacing: .08em;
+    }
+
+    .source-row h3 { margin-bottom: 4px; font-size: 20px; }
+    .source-row p { margin: 0; color: var(--ink-soft); font-size: 14px; }
+
+    .method-loop {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      margin: 0 0 76px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .method-step {
+      min-height: 190px;
+      padding: 22px 16px;
+      border-right: 1px solid var(--line);
+    }
+
+    .method-step:last-child { border-right: 0; }
+
+    .method-step em {
+      display: block;
+      margin-bottom: 48px;
+      color: var(--mint-deep);
+      font-style: normal;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .method-step b { display: block; margin-bottom: 7px; font-size: 18px; }
+    .method-step span { color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
+
+    .information-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .channel-panel,
+    .model-panel {
+      min-height: 560px;
+      padding: 40px;
+      border-radius: var(--radius);
+    }
+
+    .channel-panel {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.64);
+    }
+
+    .model-panel {
+      color: white;
+      background: #113a30;
+      box-shadow: var(--shadow);
+    }
+
+    .channel-panel > span,
+    .model-panel > span {
+      color: var(--mint-deep);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .13em;
+    }
+
+    .model-panel > span { color: var(--mint); }
+
+    .channel-panel h3,
+    .model-panel h3 {
+      margin: 16px 0 34px;
+      font-size: 30px;
+      line-height: 1.22;
+      letter-spacing: -.018em;
+    }
+
+    .channel-list,
+    .model-list { border-top: 1px solid var(--line); }
+    .model-list { border-color: rgba(255,255,255,.14); }
+
+    .channel-item,
+    .model-tier {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 18px;
+      padding: 19px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .model-tier { border-color: rgba(255,255,255,.14); }
+    .channel-item b { color: var(--mint-deep); }
+    .model-tier b { color: var(--mint); }
+    .channel-item p, .model-tier p { margin: 0; color: var(--ink-soft); font-size: 14px; }
+    .model-tier p { color: rgba(255,255,255,.66); }
+
+    .cost-formula {
+      margin-top: 30px;
+      padding: 22px 24px;
+      border-radius: 18px;
+      color: var(--ink);
+      background: var(--sun);
+    }
+
+    .cost-formula b { display: block; margin-bottom: 6px; font-size: 15px; }
+    .cost-formula p { margin: 0; font-size: 13px; }
+
+    .founder-note {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      gap: 32px;
+      align-items: center;
+      margin-top: 40px;
+      padding: 34px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .founder-note b {
+      color: var(--mint-deep);
+      font-size: 13px;
+      letter-spacing: .1em;
+    }
+
+    .founder-note p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 18px;
+    }
+
+    .experience-section {
+      background: #eef5f0;
+    }
+
+    .experience-track {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .experience-step {
+      position: relative;
+      min-height: 245px;
+      padding: 30px 28px;
+      border-right: 1px solid var(--line);
+    }
+
+    .experience-step:nth-child(4n) { border-right: 0; }
+    .experience-step:nth-child(n+5) { border-top: 1px solid var(--line); }
+
+    .experience-step em {
+      display: block;
+      margin-bottom: 52px;
+      color: var(--mint-deep);
+      font-style: normal;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .experience-step h3 {
+      margin-bottom: 10px;
+      font-size: 22px;
+      line-height: 1.3;
+      letter-spacing: -0.015em;
+    }
+
+    .experience-step p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 15px;
+    }
+
+    .experience-step.highlight {
+      color: white;
+      background: var(--ink);
+    }
+
+    .experience-step.highlight p { color: rgba(255,255,255,.67); }
+    .experience-step.highlight em { color: var(--mint); }
+
+    .l1-header {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 56px;
+      align-items: end;
+      margin-bottom: 56px;
+    }
+
+    .project-promise {
+      padding: 30px 0 6px 30px;
+      border-left: 1px solid var(--line);
+    }
+
+    .project-promise b {
+      color: var(--mint-deep);
+      font-size: 12px;
+      letter-spacing: .12em;
+    }
+
+    .project-promise strong {
+      display: block;
+      margin: 12px 0;
+      font-size: 28px;
+      line-height: 1.25;
+      letter-spacing: -.015em;
+    }
+
+    .project-promise p {
+      margin: 0;
+      color: var(--ink-soft);
+    }
+
+    .lesson-list {
+      counter-reset: lesson;
+      border-top: 1px solid var(--line);
+    }
+
+    .lesson-row {
+      counter-increment: lesson;
+      display: grid;
+      grid-template-columns: 100px minmax(220px, .85fr) minmax(360px, 1.15fr) 150px;
+      gap: 28px;
+      align-items: start;
+      padding: 30px 0;
+      border-bottom: 1px solid var(--line);
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .lesson-row:hover {
+      transform: translateX(8px);
+    }
+
+    .lesson-row::before {
+      content: "0" counter(lesson);
+      color: var(--mint-deep);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .12em;
+    }
+
+    .lesson-row h3 {
+      margin-bottom: 6px;
+      font-size: 22px;
+      line-height: 1.3;
+      letter-spacing: -.025em;
+    }
+
+    .lesson-row p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 15px;
+    }
+
+    .lesson-outcome {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      color: var(--mint-deep);
+      background: var(--mint-pale);
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .storage-ladder {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 72px;
+    }
+
+    .ladder-step {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      min-height: 220px;
+      padding: 22px 18px;
+      overflow: hidden;
+      color: white;
+      border-radius: 20px;
+      background: var(--ink);
+    }
+
+    .ladder-step:nth-child(2) { min-height: 250px; background: #104232; }
+    .ladder-step:nth-child(3) { min-height: 280px; background: #0e5d43; }
+    .ladder-step:nth-child(4) { min-height: 310px; background: #0c7652; }
+    .ladder-step:nth-child(5) { min-height: 340px; background: #089765; }
+    .ladder-step:nth-child(6) { min-height: 370px; color: var(--ink); background: var(--mint); }
+
+    .ladder-step::before {
+      content: attr(data-step);
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      color: rgba(255,255,255,.16);
+      font-size: 52px;
+      font-weight: 900;
+    }
+
+    .ladder-step:nth-child(6)::before { color: rgba(8,35,28,.12); }
+
+    .ladder-step b { margin-bottom: 6px; font-size: 18px; }
+    .ladder-step span { color: rgba(255,255,255,.58); font-size: 12px; }
+    .ladder-step:nth-child(6) span { color: rgba(8,35,28,.6); }
+
+    .assessment-layout {
+      display: grid;
+      grid-template-columns: .82fr 1.18fr;
+      gap: 68px;
+      align-items: start;
+    }
+
+    .assessment-quote {
+      padding: 38px;
+      border-radius: var(--radius);
+      color: white;
+      background: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .assessment-quote strong {
+      display: block;
+      margin-bottom: 20px;
+      color: var(--mint);
+      font-size: 15px;
+    }
+
+    .assessment-quote p {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.5;
+      letter-spacing: -.015em;
+    }
+
+    .evidence-list {
+      border-top: 1px solid var(--line);
+    }
+
+    .evidence-item {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 20px;
+      padding: 22px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .evidence-icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 14px;
+      color: var(--mint-deep);
+      background: var(--mint-pale);
+      font-weight: 900;
+    }
+
+    .evidence-item h3 { margin-bottom: 4px; font-size: 20px; }
+    .evidence-item p { margin: 0; color: var(--ink-soft); }
+
+    .product-map {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      overflow: hidden;
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+    }
+
+    .product-layer {
+      min-height: 310px;
+      padding: 30px 24px;
+      border-right: 1px solid var(--line);
+    }
+
+    .product-layer:last-child { border-right: 0; }
+
+    .product-layer:nth-child(2) { background: #effaf5; }
+    .product-layer:nth-child(3) { background: #e1f7ed; }
+    .product-layer:nth-child(4) { background: #d0f4e5; }
+    .product-layer:nth-child(5) { background: var(--mint); }
+
+    .product-layer small {
+      display: block;
+      margin-bottom: 70px;
+      color: var(--mint-deep);
+      font-weight: 900;
+      letter-spacing: .1em;
+    }
+
+    .product-layer h3 {
+      margin-bottom: 10px;
+      font-size: 22px;
+      line-height: 1.3;
+      letter-spacing: -.015em;
+    }
+
+    .product-layer p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .roadmap {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 28px;
+      counter-reset: phase;
+    }
+
+    .roadmap-phase {
+      counter-increment: phase;
+      padding-top: 24px;
+      border-top: 4px solid var(--ink);
+    }
+
+    .roadmap-phase::before {
+      content: "0" counter(phase);
+      display: block;
+      margin-bottom: 34px;
+      color: var(--mint-deep);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .12em;
+    }
+
+    .roadmap-phase h3 { margin-bottom: 10px; font-size: 24px; }
+    .roadmap-phase p { color: var(--ink-soft); font-size: 15px; }
+    .roadmap-phase ul { margin: 18px 0 0; padding-left: 18px; color: var(--ink-soft); font-size: 14px; }
+
+    .principles {
+      color: white;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(19,201,135,.16), transparent 28rem),
+        var(--ink);
+    }
+
+    .principle-statement {
+      max-width: 980px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .principle-statement .section-kicker { color: var(--mint); }
+
+    .principle-statement h2 {
+      margin-inline: auto;
+      max-width: 1020px;
+      font-size: clamp(40px, 4.8vw, 64px);
+      line-height: 1.16;
+      letter-spacing: -.025em;
+    }
+
+    .principle-statement p {
+      max-width: 760px;
+      margin: 0 auto 42px;
+      color: rgba(255,255,255,.65);
+      font-size: 20px;
+    }
+
+    .proof-line {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .proof-line span {
+      padding: 10px 15px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      color: rgba(255,255,255,.76);
+      font-size: 13px;
+    }
+
+    .references {
+      padding: 70px 24px;
+      background: #e8f1eb;
+    }
+
+    .reference-grid {
+      display: grid;
+      grid-template-columns: .7fr 1.3fr;
+      gap: 60px;
+      width: min(100%, var(--max));
+      margin: 0 auto;
+    }
+
+    .reference-grid h2 { font-size: 32px; }
+
+    .reference-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .reference-list a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 22px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink-soft);
+      text-decoration: none;
+    }
+
+    .reference-list a:hover { color: var(--mint-deep); }
+
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 32px max(24px, calc((100vw - var(--max)) / 2));
+      color: rgba(255,255,255,.62);
+      background: var(--ink);
+      font-size: 13px;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 680ms ease, transform 680ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: .9; }
+      50% { transform: scale(1.08); opacity: 1; }
+    }
+
+    @keyframes panel-in {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 980px) {
+      .hero-inner { grid-template-columns: 1fr; padding-top: 140px; }
+      .hero-map { min-height: 500px; }
+      .north-star, .assessment-layout, .l1-header { grid-template-columns: 1fr; }
+      .manifesto { position: static; }
+      .route-compare { grid-template-columns: 1fr; }
+      .route-column { padding: 42px 38px; }
+      .route-column:first-child { padding-left: 0; }
+      .matrix-heading { grid-template-columns: 1fr; gap: 14px; }
+      .level-panel { grid-template-columns: 1fr; }
+      .level-number { font-size: 96px; }
+      .spiral-layout { grid-template-columns: 1fr; }
+      .native-thesis, .information-grid { grid-template-columns: 1fr; }
+      .method-loop { grid-template-columns: repeat(4, 1fr); }
+      .method-step:nth-child(4n) { border-right: 0; }
+      .method-step:nth-child(n+5) { border-top: 1px solid var(--line); }
+      .experience-track { grid-template-columns: repeat(2, 1fr); }
+      .experience-step:nth-child(2n) { border-right: 0; }
+      .experience-step:nth-child(3), .experience-step:nth-child(4) { border-top: 1px solid var(--line); }
+      .lesson-row { grid-template-columns: 70px 1fr 1.2fr; }
+      .lesson-outcome { grid-column: 2 / -1; justify-self: start; }
+      .storage-ladder { grid-template-columns: repeat(3, 1fr); align-items: end; }
+      .product-map { grid-template-columns: repeat(2, 1fr); }
+      .product-layer { border-bottom: 1px solid var(--line); }
+      .roadmap { grid-template-columns: repeat(2, 1fr); }
+      .reference-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .site-header { width: min(calc(100% - 28px), var(--max)); padding-top: 16px; }
+      .brand span:last-child { display: none; }
+      .ghost-button { display: none; }
+      .hero-inner {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: min(calc(100% - 32px), var(--max));
+        min-height: 100svh;
+        padding: 104px 0 48px;
+      }
+      .hero-copy { position: relative; z-index: 2; }
+      h1 {
+        font-size: clamp(46px, 12.5vw, 58px);
+        line-height: 1.08;
+        letter-spacing: -.025em;
+      }
+      h2 {
+        max-width: none;
+        margin-bottom: 24px;
+        font-size: clamp(32px, 8.7vw, 36px);
+        line-height: 1.24;
+        letter-spacing: -.01em;
+      }
+      h2 br { display: none; }
+      .hero-map {
+        position: absolute;
+        z-index: 1;
+        right: -270px;
+        bottom: -120px;
+        width: 520px;
+        height: 520px;
+        min-height: 0;
+        margin: 0;
+        opacity: .2 !important;
+        animation: none;
+        pointer-events: none;
+      }
+      .orbit-label { display: none; }
+      .section { padding: 78px 18px; }
+      .section-intro {
+        margin-bottom: 44px;
+        font-size: 17px;
+        line-height: 1.82;
+      }
+      .manifesto strong { line-height: 1.26; }
+      .route-column,
+      .route-column:first-child { padding: 34px 0; }
+      .route-column.aiya-route { padding-inline: 24px; }
+      .comparison-matrix { margin-top: 58px; }
+      .matrix-heading h3 { font-size: 28px; line-height: 1.28; }
+      .compare-table-shell {
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      .compare-table,
+      .compare-table tbody { display: block; width: 100%; }
+      .compare-table thead { display: none; }
+      .compare-table tbody {
+        display: grid;
+        gap: 14px;
+      }
+      .compare-table tbody tr {
+        display: grid;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: white;
+      }
+      .compare-table th,
+      .compare-table td {
+        display: block;
+        width: auto;
+        padding: 17px 20px;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .compare-table tbody th {
+        color: var(--ink);
+        background: #eaf6ef;
+        font-size: 16px;
+      }
+      .compare-table td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 5px;
+        color: var(--mint-deep);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .1em;
+      }
+      .compare-table tbody td:last-child { border-bottom: 0; }
+      .matrix-conclusion { grid-template-columns: 1fr; gap: 8px; }
+      .learning-accelerator { grid-template-columns: 1fr; }
+      .accelerator-step,
+      .accelerator-step + .accelerator-step {
+        min-height: auto;
+        padding: 28px 0 30px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .accelerator-step:last-child { border-bottom: 0; }
+      .accelerator-step em { margin-bottom: 36px; }
+      .self-learning-note { grid-template-columns: 1fr; gap: 10px; }
+      .level-button { min-width: 112px; padding: 12px 14px; }
+      .level-facts { grid-template-columns: 1fr; }
+      .spiral { min-height: 360px; padding: 30px 26px; }
+      .spiral h3 { font-size: 28px; line-height: 1.3; }
+      .reuse-quote { min-height: 380px; padding: 30px 26px; }
+      .method-loop { grid-template-columns: repeat(2, 1fr); }
+      .method-step:nth-child(2n) { border-right: 0; }
+      .method-step:nth-child(n+3) { border-top: 1px solid var(--line); }
+      .channel-panel, .model-panel { min-height: auto; padding: 30px 24px; }
+      .channel-item, .model-tier { grid-template-columns: 86px 1fr; }
+      .founder-note { grid-template-columns: 1fr; gap: 10px; }
+      .experience-track { grid-template-columns: 1fr; }
+      .experience-step { min-height: 200px; border-right: 0; border-top: 1px solid var(--line); }
+      .experience-step:first-child { border-top: 0; }
+      .experience-step em { margin-bottom: 30px; }
+      .lesson-row { grid-template-columns: 48px 1fr; gap: 14px; }
+      .lesson-row > p { grid-column: 2; }
+      .lesson-outcome { grid-column: 2; }
+      .storage-ladder { grid-template-columns: 1fr 1fr; }
+      .ladder-step,
+      .ladder-step:nth-child(n) { min-height: 190px; }
+      .assessment-quote { padding: 28px; }
+      .product-map { grid-template-columns: 1fr; }
+      .product-layer { min-height: auto; border-right: 0; }
+      .product-layer small { margin-bottom: 36px; }
+      .roadmap { grid-template-columns: 1fr; }
+      .principle-statement h2 { font-size: 36px; line-height: 1.24; }
+      footer { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    @media print {
+      @page { margin: 14mm; size: A4; }
+      body { color: #111; background: white; font-size: 10pt; }
+      .site-header, .progress, .hero-actions, .level-nav, .print-button { display: none !important; }
+      .hero { min-height: auto; color: #111; background: white; border-bottom: 3px solid #111; }
+      .hero::before, .hero-map { display: none; }
+      .hero-inner { display: block; width: 100%; padding: 18mm 0; }
+      .hero-lead, .hero-note { color: #444; }
+      .eyebrow { color: #111; }
+      .section { padding: 14mm 0; break-inside: avoid; }
+      .dark-section, .principles { color: #111; background: white; }
+      .dark-section .section-intro, .principle-statement p { color: #444; }
+      .level-stage { min-height: auto; }
+      .level-panel { display: grid !important; grid-template-columns: 90px 1fr; page-break-inside: avoid; margin-bottom: 10mm; }
+      .level-number { color: #111; font-size: 54px; }
+      .level-copy h3 { color: #111; font-size: 24px; }
+      .level-question, .level-facts p { color: #444; }
+      .level-facts b { color: #111; }
+      .spiral, .assessment-quote, .product-map { box-shadow: none; border: 1px solid #bbb; }
+      .assessment-quote { color: #111; background: white; }
+      .assessment-quote strong { color: #111; }
+      .experience-step.highlight { color: #111; background: #eee; }
+      .experience-step.highlight p { color: #444; }
+      .ladder-step, .ladder-step:nth-child(n) { min-height: 110px; color: #111; background: #eee; border: 1px solid #bbb; }
+      .ladder-step span, .ladder-step:nth-child(6) span { color: #444; }
+      .reveal { opacity: 1; transform: none; }
+      a { text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="回到页面顶部">
+      <span class="brand-mark">A</span>
+      <span>AIYA EDUCATION</span>
+    </a>
+    <div class="header-actions">
+      <a class="ghost-button" href="#journey">课程路线</a>
+      <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
+    </div>
+  </header>
+
+  <section class="hero" id="top">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <div class="eyebrow">AI 编程教育 · 课程设计蓝图 v0.4</div>
+        <h1>先点亮创造，<br />再看懂世界。</h1>
+        <p class="hero-lead">
+          一条从“<strong>我也能做应用</strong>”出发，逐步抵达理解、判断、工程实践与独立创造的学习路线。
+        </p>
+        <div class="hero-actions">
+          <a class="primary-button" href="#l1">查看下一阶段课程</a>
+          <a class="ghost-button" href="#experience">查看单课体验</a>
+        </div>
+        <div class="hero-note">
+          <span class="status-dot"></span>
+          <span>L0 创造启蒙已经完成 · 下一站：L1 数字世界地图</span>
+        </div>
+      </div>
+
+      <div class="hero-map" aria-label="AIYA 学习成长路线示意图">
+        <span class="orbit-label orbit-a"><i></i>一个想法</span>
+        <span class="orbit-label orbit-b"><i></i>可运行的作品</span>
+        <span class="orbit-label orbit-c"><i></i>独立创造者</span>
+        <svg class="journey-svg" viewBox="0 0 650 680" role="img" aria-labelledby="journeyTitle journeyDesc">
+          <title id="journeyTitle">从想法到独立创造的学习旅程</title>
+          <desc id="journeyDesc">七个阶段沿着一条发光路径逐步上升。</desc>
+          <defs>
+            <linearGradient id="pathGradient" x1="0" x2="1">
+              <stop offset="0" stop-color="#13c987" stop-opacity="0.18" />
+              <stop offset=".58" stop-color="#13c987" />
+              <stop offset="1" stop-color="#ffe36c" />
+            </linearGradient>
+            <radialGradient id="coreGlow">
+              <stop offset="0" stop-color="#13c987" stop-opacity=".34" />
+              <stop offset="1" stop-color="#13c987" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx="336" cy="348" r="286" fill="none" stroke="rgba(255,255,255,.06)" />
+          <circle cx="336" cy="348" r="220" fill="none" stroke="rgba(255,255,255,.08)" stroke-dasharray="4 14" />
+          <circle cx="336" cy="348" r="150" fill="url(#coreGlow)" />
+          <path d="M86 545 C154 620 243 598 284 515 C329 425 264 366 307 286 C347 212 432 242 463 173 C486 120 528 97 576 90"
+            fill="none" stroke="url(#pathGradient)" stroke-width="8" stroke-linecap="round" />
+          <path d="M87 545 C154 620 243 598 284 515 C329 425 264 366 307 286 C347 212 432 242 463 173 C486 120 528 97 576 90"
+            fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2" stroke-dasharray="2 16" stroke-linecap="round" />
+
+          <g class="pulse-node">
+            <circle cx="86" cy="545" r="34" fill="#13c987" />
+            <text x="86" y="552" text-anchor="middle" fill="#08231c" font-size="20" font-weight="900">L0</text>
+          </g>
+          <g class="pulse-node">
+            <circle cx="284" cy="515" r="33" fill="#bdf3df" />
+            <text x="284" y="522" text-anchor="middle" fill="#08231c" font-size="20" font-weight="900">L1</text>
+          </g>
+          <g>
+            <circle cx="292" cy="345" r="26" fill="#ffffff" fill-opacity=".9" />
+            <text x="292" y="352" text-anchor="middle" fill="#08231c" font-size="17" font-weight="900">L2</text>
+          </g>
+          <g>
+            <circle cx="348" cy="239" r="25" fill="#ffffff" fill-opacity=".78" />
+            <text x="348" y="246" text-anchor="middle" fill="#08231c" font-size="16" font-weight="900">L3</text>
+          </g>
+          <g>
+            <circle cx="463" cy="173" r="25" fill="#ffffff" fill-opacity=".64" />
+            <text x="463" y="180" text-anchor="middle" fill="#08231c" font-size="16" font-weight="900">L4</text>
+          </g>
+          <g>
+            <circle cx="522" cy="111" r="24" fill="#ffffff" fill-opacity=".5" />
+            <text x="522" y="118" text-anchor="middle" fill="#08231c" font-size="15" font-weight="900">L5</text>
+          </g>
+          <g class="pulse-node">
+            <circle cx="576" cy="90" r="42" fill="#ffe36c" />
+            <path d="M563 90l9 9 18-21" fill="none" stroke="#08231c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+          </g>
+          <text x="335" y="323" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">AIYA 学习引擎</text>
+          <text x="335" y="357" text-anchor="middle" fill="#13c987" font-size="36" font-weight="900">做 · 看 · 想 · 验</text>
+          <text x="335" y="386" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="13">每一次创造都留下理解证据</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section class="section" id="north-star">
+      <div class="section-inner north-star reveal">
+        <div class="manifesto">
+          <div class="section-kicker">课程北极星</div>
+          <strong>不是教学生“让 AI 替我写”，而是教会他“判断 AI 写得对不对”。</strong>
+          <p>作品能运行只是起点。真正的学习证据，是学员能够解释、预测、诊断、迁移，并对技术影响作出负责任的判断。</p>
+        </div>
+        <div class="growth-steps">
+          <article class="growth-step">
+            <b>01 · 做出来</b>
+            <div><h3>从兴趣与成就感开始</h3><p>用自然语言提出想法，获得能试玩、能修改、能带走的第一件数字作品。</p></div>
+          </article>
+          <article class="growth-step">
+            <b>02 · 看得懂</b>
+            <div><h3>建立计算机世界地图</h3><p>知道文件、路径、程序、数据、数据库、服务器和网络分别在做什么。</p></div>
+          </article>
+          <article class="growth-step">
+            <b>03 · 想得清</b>
+            <div><h3>理解程序行为与需求边界</h3><p>能够预测状态变化，把模糊愿望转化为规则、限制条件和验收标准。</p></div>
+          </article>
+          <article class="growth-step">
+            <b>04 · 改得对</b>
+            <div><h3>学会调试，而不是碰运气</h3><p>观察日志、复现问题、缩小范围、验证修复，并知道何时应该回滚。</p></div>
+          </article>
+          <article class="growth-step">
+            <b>05 · 做得稳</b>
+            <div><h3>从 Demo 进入工程实践</h3><p>考虑数据、权限、安全、兼容性、部署、更新和真实用户。</p></div>
+          </article>
+          <article class="growth-step">
+            <b>06 · 能创造</b>
+            <div><h3>独立解决一个真实问题</h3><p>完成调研、设计、开发、测试、发布与公开表达，形成个人作品集。</p></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section path-comparison" id="comparison">
+      <div class="section-inner reveal">
+        <div class="section-kicker">与传统编程学习路径比较</div>
+        <h2>传统路径先储备知识，<br />AIYA 先建立继续学习的理由。</h2>
+        <p class="section-intro">传统路径擅长系统训练，但常把作品、反馈和方向感放在很后面。AIYA 不降低知识标准，而是调整出现顺序：先让学习者体验创造，再从作品中发现知识缺口，最后形成能够独立前进的学习方法。</p>
+
+        <div class="route-compare">
+          <article class="route-column traditional-route">
+            <span class="route-label">TRADITIONAL PATH · 知识在前</span>
+            <h3>先学会很多零件，<br />以后再组装作品。</h3>
+            <ol class="route-flow">
+              <li><div><strong>从语法和概念开始</strong><p>变量、条件、循环、函数按知识体系逐项展开。</p></div></li>
+              <li><div><strong>通过标准练习巩固</strong><p>在题目和正确答案中训练准确性与基本功。</p></div></li>
+              <li><div><strong>较晚进入完整项目</strong><p>积累足够知识后，才开始面对真实需求和复杂系统。</p></div></li>
+              <li><div><strong>最后形成自主开发能力</strong><p>需要学习者先跨过较长的抽象训练期。</p></div></li>
+            </ol>
+            <p class="route-result">优势是体系完整、基本功扎实；风险是很多普通学习者还没做出第一件作品，就已经失去方向和兴趣。</p>
+          </article>
+
+          <article class="route-column aiya-route">
+            <span class="route-label">AIYA PATH · 创造在前</span>
+            <h3>先完成真实作品，<br />再沿问题深入知识。</h3>
+            <ol class="route-flow">
+              <li><div><strong>从自己的想法开始</strong><p>先获得一个能试玩、能分享、能继续修改的结果。</p></div></li>
+              <li><div><strong>从作品反推概念</strong><p>遇到数据、网络、规则和故障时，再学习背后的原理。</p></div></li>
+              <li><div><strong>使用现代工具解决问题</strong><p>借助 GitHub、Bilibili、Codex 和模型寻找、比较与验证方案。</p></div></li>
+              <li><div><strong>逐步接管判断与责任</strong><p>从会提需求，成长为会搜索、会验收、会调试、会取舍。</p></div></li>
+            </ol>
+            <p class="route-result">不是跳过基础，而是让每一个基础概念都在真实问题中出现，让学习者始终知道“为什么现在要学它”。</p>
+          </article>
+        </div>
+
+        <div class="comparison-matrix" id="comparison-matrix">
+          <div class="matrix-heading">
+            <h3>十二个维度，<br />看清两种学习路径。</h3>
+            <p>这不是“新方法战胜旧方法”的评分表，而是帮助学习者选择正确的进入顺序。传统路径强调系统训练，AIYA 优先解决普通初学者的兴趣、方向感与自主学习能力。</p>
+          </div>
+
+          <div class="compare-table-shell" role="region" aria-label="AIYA 与传统编程学习路径多维度对照表" tabindex="0">
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th scope="col">比较维度</th>
+                  <th scope="col">传统编程学习路径</th>
+                  <th scope="col">AIYA 学习路径</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">学习起点</th>
+                  <td data-label="传统路径"><strong>从知识目录出发</strong>先学习语法、概念和标准范例。</td>
+                  <td data-label="AIYA 路径"><strong>从自己的想法出发</strong>先把真实需求做成可以体验的作品。</td>
+                </tr>
+                <tr>
+                  <th scope="row">首次正反馈</th>
+                  <td data-label="传统路径"><strong>反馈出现较晚</strong>通常完成一段基础训练后才进入完整项目。</td>
+                  <td data-label="AIYA 路径"><strong>尽快看到结果</strong>第一阶段就获得能试玩、修改和分享的作品。</td>
+                </tr>
+                <tr>
+                  <th scope="row">知识顺序</th>
+                  <td data-label="传统路径"><strong>体系驱动</strong>按照预设知识树，从基础到应用逐项推进。</td>
+                  <td data-label="AIYA 路径"><strong>问题驱动</strong>作品遇到什么问题，就引出对应概念，再回到体系定位。</td>
+                </tr>
+                <tr>
+                  <th scope="row">代码角色</th>
+                  <td data-label="传统路径"><strong>编写代码是主要训练</strong>常用从零实现证明对语法与算法的掌握。</td>
+                  <td data-label="AIYA 路径"><strong>代码是可观察的实现</strong>可以由 AI 完成，但学习者必须能解释、验证和接管。</td>
+                </tr>
+                <tr>
+                  <th scope="row">工具与模型</th>
+                  <td data-label="传统路径"><strong>工具服务于手工编写</strong>以编辑器、调试器和课程环境为主。</td>
+                  <td data-label="AIYA 路径"><strong>工具放大完整执行力</strong>使用 Codex 与合适模型完成检索、实现、测试和交付。</td>
+                </tr>
+                <tr>
+                  <th scope="row">信息渠道</th>
+                  <td data-label="传统路径"><strong>以教材和课程为主</strong>知识范围相对稳定，路径由教师预先筛选。</td>
+                  <td data-label="AIYA 路径"><strong>建立信息雷达</strong>组合官方文档、GitHub、Bilibili、AI 搜索与运行证据。</td>
+                </tr>
+                <tr>
+                  <th scope="row">开源复用</th>
+                  <td data-label="传统路径"><strong>练习常要求独立实现</strong>重点是理解过程与训练基本功。</td>
+                  <td data-label="AIYA 路径"><strong>先搜索再决定是否自研</strong>检查许可证、安全、维护状态和适配性后复用。</td>
+                </tr>
+                <tr>
+                  <th scope="row">面对失败</th>
+                  <td data-label="传统路径"><strong>定位知识或代码错误</strong>对照答案、语法和算法寻找偏差。</td>
+                  <td data-label="AIYA 路径"><strong>追踪整个系统</strong>区分需求、模型、代码、数据、网络和运行环境，并保留日志与回滚点。</td>
+                </tr>
+                <tr>
+                  <th scope="row">成本与速度</th>
+                  <td data-label="传统路径"><strong>主要投入学习时间</strong>速度通常服从知识积累和个人编码熟练度。</td>
+                  <td data-label="AIYA 路径"><strong>计算交付总成本</strong>同时考虑模型、时间、基础设施、维护、失败和替换成本。</td>
+                </tr>
+                <tr>
+                  <th scope="row">学习评价</th>
+                  <td data-label="传统路径"><strong>看答案与代码正确性</strong>通过作业、考试和项目完成度评价。</td>
+                  <td data-label="AIYA 路径"><strong>看可观察的理解证据</strong>作品运行之外，还要解释、预测、诊断、迁移和复盘。</td>
+                </tr>
+                <tr>
+                  <th scope="row">教师角色</th>
+                  <td data-label="传统路径"><strong>讲解并组织知识</strong>提供范例、练习、反馈和正确路径。</td>
+                  <td data-label="AIYA 路径"><strong>设计问题与质量门槛</strong>追问依据、暴露误解，并指导学生形成判断。</td>
+                </tr>
+                <tr>
+                  <th scope="row">毕业能力</th>
+                  <td data-label="传统路径"><strong>能够独立编写程序</strong>具备系统知识、实现能力和扎实基本功。</td>
+                  <td data-label="AIYA 路径"><strong>能够独立解决陌生问题</strong>会学习、会判断、会整合、会交付，并逐步补齐实现深度。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="matrix-conclusion">
+            <b>不是替代，而是重新排序</b>
+            <p>传统路径在系统训练、算法思维和深入实现方面仍然重要。AIYA 先帮助普通学习者跨过“为什么学、接下来学什么、离开课程怎么办”三道门槛，再把传统基本功嵌入真实项目和后续开发者分轨。</p>
+          </aside>
+        </div>
+
+        <div class="learning-accelerator" aria-label="AIYA 学习加速三阶段">
+          <article class="accelerator-step">
+            <em>01 · MOTIVATION</em>
+            <h3>找到乐趣</h3>
+            <p>尽快完成第一件属于自己的作品，让“我能创造”先于“我还不会”。兴趣不依赖说教，而来自可见的控制感、反馈和成就。</p>
+          </article>
+          <article class="accelerator-step">
+            <em>02 · DIRECTION</em>
+            <h3>找到进阶途径</h3>
+            <p>每次作品遇到的新问题，都能对应到下一项能力：数据、程序行为、网络、AI 协作或工程实践。学习不再是一张没有出口的知识清单。</p>
+          </article>
+          <article class="accelerator-step">
+            <em>03 · AUTONOMY</em>
+            <h3>驶入自学快车道</h3>
+            <p>掌握“定义—搜索—筛选—复用—实现—验证—复盘”的循环。以后遇到课程没有教过的问题，也知道如何自己找到可靠答案。</p>
+          </article>
+        </div>
+
+        <aside class="self-learning-note">
+          <b>真正的毕业标准</b>
+          <p>不是把所有知识提前学完，而是能把一个陌生问题变成可检索、可实验、可验证的小问题。AIYA 最终交付给学习者的，不只是作品，而是一台可以持续运转的自学引擎。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section dark-section" id="journey">
+      <div class="section-inner reveal">
+        <div class="section-kicker">完整学习路线</div>
+        <h2>一条主路走到底，<br />到核心通识完成后再分轨。</h2>
+        <p class="section-intro">早期不让学员在“学语法还是做产品”之间选择。所有人先建立共同的计算与 AI 素养，再选择创作者路线或开发者路线。</p>
+
+        <div class="level-nav" role="tablist" aria-label="课程阶段">
+          <button class="level-button active" type="button" role="tab" aria-selected="true" data-level="0">L0 创造启蒙<span>当前已完成</span></button>
+          <button class="level-button" type="button" role="tab" aria-selected="false" data-level="1">L1 数字世界<span>9 课</span></button>
+          <button class="level-button" type="button" role="tab" aria-selected="false" data-level="2">L2 程序行为<span>10 课</span></button>
+          <button class="level-button" type="button" role="tab" aria-selected="false" data-level="3">L3 AI 协作<span>8 课</span></button>
+          <button class="level-button" type="button" role="tab" aria-selected="false" data-level="4">L4 工程实践<span>12 课</span></button>
+          <button class="level-button" type="button" role="tab" aria-selected="false" data-level="5">L5 AI 原理<span>10 课</span></button>
+          <button class="level-button" type="button" role="tab" aria-selected="false" data-level="6">L6 独立作品<span>4–8 周</span></button>
+        </div>
+
+        <div class="level-stage">
+          <article class="level-panel active" data-panel="0" role="tabpanel">
+            <div><div class="level-number">L0</div><span class="level-status">已完成 · 手机端启蒙版</span></div>
+            <div class="level-copy">
+              <h3>创造启蒙：原来我也可以做应用</h3>
+              <p class="level-question">核心问题：AI 能帮我把一个想法变成什么？</p>
+              <div class="level-facts">
+                <div><b>学习结果</b><p>会提出需求、试玩结果、继续修改，并将作品带走。</p></div>
+                <div><b>典型作品</b><p>小游戏、计算器、语音应用、体感互动与生活工具。</p></div>
+                <div><b>代码接触</b><p>不要求阅读或修改代码，以兴趣和掌控感为主。</p></div>
+                <div><b>毕业证据</b><p>能用自己的话描述作品规则，并完成至少一次有效迭代。</p></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="level-panel" data-panel="1" role="tabpanel">
+            <div><div class="level-number">L1</div><span class="level-status">下一阶段 · PC 端 AIYA LAB</span></div>
+            <div class="level-copy">
+              <h3>数字世界地图：应用和数据究竟住在哪里</h3>
+              <p class="level-question">核心问题：为什么刷新后数据消失？换一台电脑为什么看不到？</p>
+              <div class="level-facts">
+                <div><b>学习结果</b><p>理解文件、路径、内存、持久化、数据库、客户端、服务器与 API。</p></div>
+                <div><b>主线作品</b><p>《我的数字花园》从一次性页面成长为多设备联网应用。</p></div>
+                <div><b>代码接触</b><p>代码作为可观察黑盒，通过高亮追踪保存和读取过程。</p></div>
+                <div><b>毕业证据</b><p>能解释数据存在哪里、为何不会丢，以及断网后会怎样。</p></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="level-panel" data-panel="2" role="tabpanel">
+            <div><div class="level-number">L2</div><span class="level-status">理解程序，不急着写程序</span></div>
+            <div class="level-copy">
+              <h3>程序行为：输入之后，计算机经历了什么</h3>
+              <p class="level-question">核心问题：按钮为什么会响应？角色为什么会移动？规则为什么会重复执行？</p>
+              <div class="level-facts">
+                <div><b>学习结果</b><p>理解输入输出、事件、状态、条件、循环、函数、数据结构与算法。</p></div>
+                <div><b>典型作品</b><p>状态机小游戏、自动计分器、规则模拟器和交互故事。</p></div>
+                <div><b>代码接触</b><p>预测、运行、追踪与解释；先会读，再逐步修改。</p></div>
+                <div><b>毕业证据</b><p>面对新程序，能够画出状态变化并预测边界情况。</p></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="level-panel" data-panel="3" role="tabpanel">
+            <div><div class="level-number">L3</div><span class="level-status">AI 时代的核心开发能力</span></div>
+            <div class="level-copy">
+              <h3>AI 协作开发：从一句愿望到可验收的需求</h3>
+              <p class="level-question">核心问题：为什么 AI 明明“做完了”，却不是我想要的？</p>
+              <div class="level-facts">
+                <div><b>学习结果</b><p>会定义需求、检索信息、比较方案、评估成本，并用 AI 完成可验收的交付。</p></div>
+                <div><b>典型作品</b><p>复用一个成熟开源项目或组件，为真实使用者完成三轮测试改进。</p></div>
+                <div><b>代码接触</b><p>使用 Codex 阅读、集成与修改代码，学会版本、回滚、日志与故障复现。</p></div>
+                <div><b>毕业证据</b><p>能展示信息来源、许可证、方案对比、成本判断和可重复的验证过程。</p></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="level-panel" data-panel="4" role="tabpanel">
+            <div><div class="level-number">L4</div><span class="level-status">从 Demo 到真实产品</span></div>
+            <div class="level-copy">
+              <h3>工程实践：让应用可以长期稳定地被别人使用</h3>
+              <p class="level-question">核心问题：一个“能跑”的作品距离“能交付”的产品还差什么？</p>
+              <div class="level-facts">
+                <div><b>学习结果</b><p>掌握多文件结构、接口、数据库、账号、权限、安全、部署、更新和监控。</p></div>
+                <div><b>典型作品</b><p>具备登录、多用户数据和线上服务的完整应用。</p></div>
+                <div><b>代码接触</b><p>通识主线继续 AI 协作；同时开放开发者分轨。</p></div>
+                <div><b>毕业证据</b><p>能根据日志定位线上问题，并完成一次安全、可回滚的发布。</p></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="level-panel" data-panel="5" role="tabpanel">
+            <div><div class="level-number">L5</div><span class="level-status">理解 AI，而不是只会调用 AI</span></div>
+            <div class="level-copy">
+              <h3>AI 原理与应用：模型会什么、不会什么</h3>
+              <p class="level-question">核心问题：AI 如何感知、表示、学习、推理和与人交互？</p>
+              <div class="level-facts">
+                <div><b>学习结果</b><p>理解传感器、数据、训练与推理、搜索、RAG、多模态、智能体和偏差。</p></div>
+                <div><b>典型作品</b><p>带搜索依据的助手、视觉互动、语音游戏和校园智能服务。</p></div>
+                <div><b>代码接触</b><p>围绕 AI 系统结构进行配置、实验、评估和安全设计。</p></div>
+                <div><b>毕业证据</b><p>能够说明模型输出的不确定性、数据风险和人工复核方法。</p></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="level-panel" data-panel="6" role="tabpanel">
+            <div><div class="level-number">L6</div><span class="level-status">作品集与公开表达</span></div>
+            <div class="level-copy">
+              <h3>独立作品：用技术解决一个值得解决的问题</h3>
+              <p class="level-question">核心问题：我能否定义问题、持续验证，并为真实用户交付结果？</p>
+              <div class="level-facts">
+                <div><b>学习结果</b><p>完成调研、原型、开发、用户测试、发布、复盘与公开展示。</p></div>
+                <div><b>典型作品</b><p>由学员自主选题，优先服务家庭、学校或社区中的真实需求。</p></div>
+                <div><b>代码接触</b><p>创作者路线和开发者路线使用不同工具，但采用同一套质量标准。</p></div>
+                <div><b>毕业证据</b><p>一件可访问的作品、一份过程纪录和一次面向他人的项目讲述。</p></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-inner reveal">
+        <div class="section-kicker">三螺旋能力地图</div>
+        <h2>计算机基础、AI 素养与开发方法，<br />从第一课起共同生长。</h2>
+        <p class="section-intro">AI 编程教育不能只剩提示词，也不能退回单纯的语法训练。每一个项目同时回答“系统如何工作”“人应该怎样使用 AI”，以及“怎样借助信息、开源和工具更快、更经济地交付”。</p>
+        <div class="spiral-layout">
+          <article class="spiral">
+            <span class="spiral-index">SPIRAL A · COMPUTING</span>
+            <h3>计算机世界的底层逻辑</h3>
+            <ul class="strand-list">
+              <li>计算系统、文件、进程与运行环境</li>
+              <li>数据、持久化、数据库与分析</li>
+              <li>网络、客户端、服务器、API 与安全</li>
+              <li>算法、程序、状态、测试与调试</li>
+              <li>工程、版本、部署、监控与协作</li>
+            </ul>
+          </article>
+          <article class="spiral ai">
+            <span class="spiral-index">SPIRAL B · AI LITERACY</span>
+            <h3>作为 AI 使用者与共同创造者</h3>
+            <ul class="strand-list">
+              <li>以人为本：从真实需要出发设计</li>
+              <li>AI 伦理：隐私、偏差、版权与责任</li>
+              <li>AI 技术：感知、表示、学习与交互</li>
+              <li>AI 应用：搜索、RAG、多模态与智能体</li>
+              <li>AI 系统设计：评估、边界和人工复核</li>
+            </ul>
+          </article>
+          <article class="spiral methods">
+            <span class="spiral-index">SPIRAL C · AI-NATIVE PRACTICE</span>
+            <h3>信息、开源、工具与经济判断</h3>
+            <ul class="strand-list">
+              <li>GitHub、官方文档与 Bilibili 的信息检索</li>
+              <li>Codex、旗舰模型与快速模型的任务分工</li>
+              <li>搜索、评估、复用，而不是重复造轮子</li>
+              <li>许可证、安全、维护状态与适配验证</li>
+              <li>成本、速度、MVP、发布与开源回馈</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section native-method" id="ai-native-method">
+      <div class="section-inner reveal">
+        <div class="section-kicker">AI 原生开发方法</div>
+        <h2>真正的能力，不是从零写得多，<br />而是更快找到、判断、复用并交付。</h2>
+        <p class="section-intro">AI 时代的开发者把时间用在定义问题、搜索源头、选择方案、验证结果、完成集成和服务用户上。代码可以由 AI 和开源社区提供起点，但判断与责任不能外包。</p>
+
+        <div class="native-thesis">
+          <article class="reuse-quote">
+            <span>AIYA RULE 01</span>
+            <strong>能复用，<br />就不要从空白开始。</strong>
+            <p>这不是盲目复制。复用前必须检查许可证、维护状态、安全记录、依赖体积、版本兼容和真实适配性；复用后仍要能运行、能解释、能测试、能维护。</p>
+          </article>
+
+          <div class="source-order">
+            <div class="source-row"><b>01 · 一手依据</b><div><strong>官方文档、源码与发布说明</strong><p>先确认 API、版本、限制和安全公告，避免被过时教程带偏。</p></div></div>
+            <div class="source-row"><b>02 · 真实现场</b><div><strong>GitHub：代码、Issue、PR、Discussions</strong><p>找实现、看历史、读争论，确认别人是否遇到并解决过同类问题。</p></div></div>
+            <div class="source-row"><b>03 · 体验入口</b><div><strong>Bilibili：中文讲解、演示与工作流</strong><p>用视频快速建立直觉，但必须追溯到仓库、文档、版本和可运行证据。</p></div></div>
+            <div class="source-row"><b>04 · 导航助手</b><div><strong>搜索引擎与 AI 模型</strong><p>让模型整理关键词和方案地图，不把摘要当成最终事实。</p></div></div>
+            <div class="source-row"><b>05 · 最终裁判</b><div><strong>真实运行、测试、日志与用户反馈</strong><p>能复现、能通过验收，才算知道；“模型说可以”不算验证。</p></div></div>
+          </div>
+        </div>
+
+        <div class="method-loop" aria-label="AI 原生开发八步循环">
+          <article class="method-step"><em>01</em><h3>定义</h3><p>说清用户、问题、边界与验收标准。</p></article>
+          <article class="method-step"><em>02</em><h3>搜索</h3><p>精确错误、英文关键词、GitHub 与官方资料。</p></article>
+          <article class="method-step"><em>03</em><h3>筛选</h3><p>看许可证、维护、安全、体积和适配，不只看 Star。</p></article>
+          <article class="method-step"><em>04</em><h3>复用</h3><p>优先选择最小、成熟、可替换的依赖或模板。</p></article>
+          <article class="method-step"><em>05</em><h3>实现</h3><p>让 Codex 读仓库、改代码、运行工具并保留过程。</p></article>
+          <article class="method-step"><em>06</em><h3>验证</h3><p>实际运行、测试、读日志，对照来源和验收标准。</p></article>
+          <article class="method-step"><em>07</em><h3>发布</h3><p>先交付最小可用纵切面，再逐轮正确、稳定、好用。</p></article>
+          <article class="method-step"><em>08</em><h3>回馈</h3><p>沉淀文档、Issue、PR 或模板，把改进还给社区。</p></article>
+        </div>
+
+        <div class="information-grid">
+          <article class="channel-panel">
+            <span class="panel-label">INFORMATION RADAR</span>
+            <h3>GitHub 找源头，<br />Bilibili 找体验。</h3>
+            <div class="channel-list">
+              <div class="channel-item"><b>GitHub</b><p>源码、Release、Issue、PR、Discussions；学会沿提交历史找到“为什么这样改”。</p></div>
+              <div class="channel-item"><b>Bilibili</b><p>中文解释、真实演示、工具工作流；关注发布日期，并核对视频对应的仓库版本。</p></div>
+              <div class="channel-item"><b>官方资料</b><p>接口契约、版本兼容、安全公告和限制条件，是技术判断的底线。</p></div>
+              <div class="channel-item"><b>英文检索</b><p>保留完整报错，组合库名、版本、平台与症状，往往比中文泛搜更快命中。</p></div>
+            </div>
+          </article>
+
+          <article class="model-panel">
+            <span class="panel-label">MODEL ECONOMY</span>
+            <h3>最强模型破难题，<br />快速模型跑规模。</h3>
+            <div class="model-list">
+              <div class="model-tier"><b>GPT 5.6</b><p>用于架构判断、模糊多步骤任务、困难故障和需要完整验证的关键交付。</p></div>
+              <div class="model-tier"><b>5.6 Terra</b><p>用于探索、读大量文件、代码扫描、资料整理和并行子任务。</p></div>
+              <div class="model-tier"><b>经济模型</b><p>用于格式转换、批处理、重复文档、固定测试和低风险机械工作。</p></div>
+              <div class="model-tier"><b>人</b><p>保留产品意图、架构取舍、验收、质量判断以及最终责任。</p></div>
+            </div>
+            <div class="cost-formula">
+              <b>总成本不等于模型单价</b>
+              <p>总成本 = 模型 / API + 开发时间 + 基础设施 + 延迟 + 维护 + 失败风险 + 替换成本</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="founder-note">
+          <b>首席学习者，而非技术局外人</b>
+          <p>编程基础一般反而是一项课程设计优势：每一个“我为什么看不懂”，都暴露了专家习以为常却没有讲清的前提。你的角色是定义目标、判断体验、追问依据、记录失败与成本；Codex 和模型负责放大执行力。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section experience-section" id="experience">
+      <div class="section-inner reveal">
+        <div class="section-kicker">单课体验模板</div>
+        <h2>每一课都像一集<br />可以亲手改变结局的纪录片。</h2>
+        <p class="section-intro">一节课只解决一个关键疑问。页面始终只有一个主要动作，学习过程自然推进，不依赖复杂菜单。</p>
+        <div class="experience-track">
+          <article class="experience-step highlight"><em>01 · 现象</em><h3>先让问题发生</h3><p>数据突然消失、按钮失效或两台设备结果不一致。</p></article>
+          <article class="experience-step"><em>02 · 预测</em><h3>先说出你的判断</h3><p>操作前预测结果，暴露真实理解和常见误区。</p></article>
+          <article class="experience-step"><em>03 · 实验</em><h3>把抽象概念变可见</h3><p>拖动文件、观察数据流、断开网络并查看系统变化。</p></article>
+          <article class="experience-step"><em>04 · 创作</em><h3>让 AIYA 完成升级</h3><p>学员决定目标与规则，AIYA 负责具体实现。</p></article>
+          <article class="experience-step"><em>05 · 显微镜</em><h3>只看本课相关代码</h3><p>高亮保存、读取或请求发生的位置，不要求通读源码。</p></article>
+          <article class="experience-step highlight"><em>06 · 故障</em><h3>主动制造一次失败</h3><p>路径写错、网络断开或字段缺失，训练诊断思维。</p></article>
+          <article class="experience-step"><em>07 · 迁移</em><h3>换一个作品再用一次</h3><p>把同一概念迁移到新的应用，证明不是机械照做。</p></article>
+          <article class="experience-step"><em>08 · 证据</em><h3>用自己的话说清楚</h3><p>保留预测、实验、修复、版本和一句话解释。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="l1">
+      <div class="section-inner reveal">
+        <div class="l1-header">
+          <div>
+            <div class="section-kicker">下一阶段详细设计</div>
+            <h2>L1 · 数字世界地图</h2>
+            <p class="section-intro" style="margin-bottom:0">先不要求手动改代码。通过一个持续成长的项目，由浅入深理解数据持久化和现代应用的基本结构。</p>
+          </div>
+          <aside class="project-promise">
+            <b>主线项目</b>
+            <strong>《我的数字花园》</strong>
+            <p>每一条想法是一颗种子。作品从“刷新就消失”，逐步成长为可以登录、同步和分享的联网花园。</p>
+          </aside>
+        </div>
+
+        <div class="lesson-list">
+          <article class="lesson-row"><h3>程序住在哪里</h3><p>认识文件、文件夹、路径、扩展名和程序入口；亲手搬动文件并观察路径变化。</p><span class="lesson-outcome">画出作品文件地图</span></article>
+          <article class="lesson-row"><h3>为什么刷新后消失</h3><p>区分变量、内存和持久化；观察页面刷新、程序关闭、电脑重启带来的差异。</p><span class="lesson-outcome">解释“临时数据”</span></article>
+          <article class="lesson-row"><h3>把种子写进文件</h3><p>从 TXT、CSV 到 JSON，理解最直接的文件保存方式、结构化数据和读写过程。</p><span class="lesson-outcome">导出并恢复 JSON</span></article>
+          <article class="lesson-row"><h3>浏览器自己的抽屉</h3><p>在文件存储之后引入 LocalStorage 与 IndexedDB，比较容量、结构、适用场景与限制。</p><span class="lesson-outcome">完成本地自动保存</span></article>
+          <article class="lesson-row"><h3>应用里的小型数据库</h3><p>使用 SQLite 理解表、字段、记录、主键和查询，让大量数据仍然能被快速找到。</p><span class="lesson-outcome">建立第一张数据表</span></article>
+          <article class="lesson-row"><h3>真正的工程数据库</h3><p>认识关系型数据库、数据关系、增删改查和并发访问，理解为什么不能一直靠文件堆积。</p><span class="lesson-outcome">设计花园数据模型</span></article>
+          <article class="lesson-row"><h3>两台电脑怎样说话</h3><p>建立客户端、服务器、HTTP、请求、响应和 API 的完整画面，观察一次数据往返。</p><span class="lesson-outcome">追踪一次网络请求</span></article>
+          <article class="lesson-row"><h3>让花园跨设备同步</h3><p>处理登录、缓存、离线、延迟和同步冲突；理解“云端”本质上仍然是别人的计算机。</p><span class="lesson-outcome">完成多设备同步</span></article>
+          <article class="lesson-row"><h3>让数据安全地留下</h3><p>认识权限、隐私、备份、恢复与最小数据原则，完成一次故障恢复和安全检查。</p><span class="lesson-outcome">发布联网花园 v1</span></article>
+        </div>
+
+        <div class="storage-ladder" aria-label="数据持久化学习阶梯">
+          <div class="ladder-step" data-step="1"><b>内存</b><span>快，但关闭即失</span></div>
+          <div class="ladder-step" data-step="2"><b>文本 / JSON</b><span>最直接的文件持久化</span></div>
+          <div class="ladder-step" data-step="3"><b>浏览器本地</b><span>方便，但受设备限制</span></div>
+          <div class="ladder-step" data-step="4"><b>SQLite</b><span>应用内部的小型数据库</span></div>
+          <div class="ladder-step" data-step="5"><b>服务端数据库</b><span>多人、多设备与查询</span></div>
+          <div class="ladder-step" data-step="6"><b>云端系统</b><span>同步、权限、备份和安全</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="background:#eef5f0">
+      <div class="section-inner assessment-layout reveal">
+        <aside class="assessment-quote">
+          <strong>评价原则</strong>
+          <p>“应用运行成功”不等于“学会了”。成就必须由可观察的理解证据触发。</p>
+        </aside>
+        <div>
+          <div class="section-kicker">学习评价</div>
+          <h2 style="font-size:clamp(34px,4vw,52px)">不用背诵考试，<br />用行为证明掌握。</h2>
+          <div class="evidence-list">
+            <article class="evidence-item"><span class="evidence-icon">说</span><div><h3>解释</h3><p>能用自己的话说明概念，而不是重复老师的话。</p></div></article>
+            <article class="evidence-item"><span class="evidence-icon">猜</span><div><h3>预测</h3><p>能在运行前预测结果，并说明判断依据。</p></div></article>
+            <article class="evidence-item"><span class="evidence-icon">查</span><div><h3>诊断</h3><p>遇到失败时知道先看现象、日志、数据还是网络。</p></div></article>
+            <article class="evidence-item"><span class="evidence-icon">迁</span><div><h3>迁移</h3><p>能把同一概念应用到陌生作品，而不是只会完成例题。</p></div></article>
+            <article class="evidence-item"><span class="evidence-icon">责</span><div><h3>责任</h3><p>能够识别隐私、安全、偏差、版权和真实用户风险。</p></div></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-inner reveal">
+        <div class="section-kicker">产品表现形式</div>
+        <h2>不是一个课程播放器，<br />而是一套学习操作系统。</h2>
+        <p class="section-intro">不同产品各自只承担一种责任，避免在一个界面里同时塞入讲课、编程、管理和展示。</p>
+        <div class="product-map">
+          <article class="product-layer"><small>01 · 入口</small><h3>AIYA 手机启蒙版</h3><p>快速创作、培养兴趣、体验传感器能力、试玩并展示作品。</p></article>
+          <article class="product-layer"><small>02 · 主课堂</small><h3>AIYA LAB 电脑端</h3><p>课程地图、信息雷达、互动实验、代码显微镜、方案与成本记录、版本和学习证据。</p></article>
+          <article class="product-layer"><small>03 · 讲解</small><h3>助教</h3><p>负责 60–90 秒概念开场、故事化演示和课后总结。</p></article>
+          <article class="product-layer"><small>04 · 互动</small><h3>AIYA 老师</h3><p>实时提问、发现误解、指导实验、评价解释与迁移。</p></article>
+          <article class="product-layer"><small>05 · 后台</small><h3>教学控制台</h3><p>查看完整学习过程、失败任务、概念掌握和课程效果。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-inner reveal">
+        <div class="section-kicker">建议实施路线</div>
+        <h2>先验证一条完整学习闭环，<br />再扩展整套课程。</h2>
+        <p class="section-intro">第一轮不要同时覆盖所有年龄和所有知识点。先面向 12 岁以上零基础学习者，验证 L1 是否真正改变了他们对数据和应用的理解。</p>
+        <div class="roadmap">
+          <article class="roadmap-phase"><h3>能力地图</h3><p>先冻结课程目标与证据标准。</p><ul><li>定义先修关系</li><li>确定概念词汇</li><li>设计误区清单</li></ul></article>
+          <article class="roadmap-phase"><h3>三课 MVP</h3><p>先实现 L1 的前 3 课。</p><ul><li>文件与路径</li><li>内存与持久化</li><li>JSON 文件保存</li></ul></article>
+          <article class="roadmap-phase"><h3>小规模实测</h3><p>让真实零基础学员完整体验。</p><ul><li>观察卡点</li><li>收集口头解释</li><li>验证迁移任务</li></ul></article>
+          <article class="roadmap-phase"><h3>扩展一季</h3><p>验证闭环后完成 L1 全部 9 课。</p><ul><li>接入助教内容</li><li>建立 GitHub 开放素材库</li><li>发布 Bilibili 实践导览</li></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section principles">
+      <div class="section-inner principle-statement reveal">
+        <div class="section-kicker">最终原则</div>
+        <h2>让学员每完成一件作品，<br />都比上一次更懂数字世界。</h2>
+        <p>AIYA 的价值不只是让 AI 更快写代码，而是把原本隐藏在代码、服务器和模型背后的世界，变成普通人可以观察、实验、解释和掌控的学习过程。</p>
+        <div class="proof-line">
+          <span>我知道做了什么</span>
+          <span>我知道为什么能运行</span>
+          <span>我知道去哪里找证据</span>
+          <span>我知道何时应该复用</span>
+          <span>我能预测修改结果</span>
+          <span>我知道失败先查哪里</span>
+          <span>我能判断 AI 是否可靠</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="references">
+      <div class="reference-grid">
+        <div><div class="section-kicker">参考框架</div><h2>课程依据</h2><p style="color:var(--ink-soft)">用于校验知识覆盖和学习进阶，不直接照搬为产品目录。</p></div>
+        <div class="reference-list">
+          <a href="https://csteachers.org/pk12standards/about/" target="_blank" rel="noreferrer"><span>CSTA PK–12 Computer Science Standards</span><span>↗</span></a>
+          <a href="https://ai4k12.org/gradeband-progression-charts/" target="_blank" rel="noreferrer"><span>AI4K12 · Five Big Ideas in AI</span><span>↗</span></a>
+          <a href="https://www.unesco.org/en/articles/ai-competency-framework-students" target="_blank" rel="noreferrer"><span>UNESCO · AI Competency Framework for Students</span><span>↗</span></a>
+          <a href="https://www.raspberrypi.org/teach/pedagogy" target="_blank" rel="noreferrer"><span>Raspberry Pi Foundation · Computing Pedagogy</span><span>↗</span></a>
+          <a href="https://learn.chatgpt.com/docs/agent-configuration/subagents#model-choice" target="_blank" rel="noreferrer"><span>OpenAI · Codex Model Choice</span><span>↗</span></a>
+          <a href="https://docs.github.com/en/repositories/working-with-files/using-files/navigating-code-on-github" target="_blank" rel="noreferrer"><span>GitHub Docs · Navigating Code</span><span>↗</span></a>
+          <a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/filtering-and-searching-issues-and-pull-requests" target="_blank" rel="noreferrer"><span>GitHub Docs · Search Issues and Pull Requests</span><span>↗</span></a>
+          <a href="https://opensource.guide/how-to-contribute/" target="_blank" rel="noreferrer"><span>Open Source Guides · How to Contribute</span><span>↗</span></a>
+          <a href="https://opensource.guide/legal/" target="_blank" rel="noreferrer"><span>Open Source Guides · Legal and Licensing</span><span>↗</span></a>
+          <a href="https://skills.github.com/" target="_blank" rel="noreferrer"><span>GitHub Skills · Interactive Learning</span><span>↗</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <strong>AIYA AI 编程教育 · 课程设计蓝图</strong>
+    <span>版本 v0.4 · 2026-07-15 · 用于产品讨论与课程原型验证</span>
+  </footer>
+
+  <script>
+    const progress = document.querySelector('.progress');
+    const updateProgress = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      progress.style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
+    };
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.025, rootMargin: "0px 0px -4% 0px" });
+    document.querySelectorAll('.reveal').forEach((element) => revealObserver.observe(element));
+
+    const buttons = [...document.querySelectorAll('.level-button')];
+    const panels = [...document.querySelectorAll('.level-panel')];
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const selected = button.dataset.level;
+        buttons.forEach((item) => {
+          const active = item === button;
+          item.classList.toggle('active', active);
+          item.setAttribute('aria-selected', String(active));
+        });
+        panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === selected));
+      });
+    });
+  </script>
+</body>
+</html>

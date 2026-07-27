@@ -1,0 +1,20 @@
+﻿{
+    "name":  "@aiya/dev-runner",
+    "version":  "0.1.0",
+    "private":  true,
+    "type":  "module",
+    "scripts":  {
+                    "dev":  "node --env-file=.env ./src/index.js",
+                    "start":  "node --env-file=.env ./src/index.js",
+                    "build":  "node ../../scripts/check-js-syntax.mjs src scripts",
+                    "lint":  "node ../../scripts/check-js-syntax.mjs src scripts",
+                    "typecheck":  "node ../../scripts/check-js-syntax.mjs src scripts",
+                    "smoke:terminal":  "node ./scripts/smoke-terminal.mjs",
+                    "smoke:web-terminal":  "node ./scripts/smoke-web-terminal.mjs"
+                },
+    "dependencies":  {
+                         "@fastify/websocket":  "^11.2.0",
+                         "fastify":  "^5.2.0",
+                         "node-pty":  "^1.1.0"
+                     }
+}

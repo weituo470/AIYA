@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#eef4df">
+  <title>生态瓶</title>
+  <style>
+    :root{--ink:#18362d;--moss:#4e7b53;--lime:#d8ee8a;--water:#8ddad1;--paper:#f5f2df;--warn:#e37a4e}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--paper);color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;touch-action:manipulation}
+    button,input{font:inherit}button{border:0;color:inherit}
+    .app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:calc(12px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom));background:radial-gradient(circle at 84% 9%,rgba(210,238,125,.65),transparent 22%),linear-gradient(#f6f4e5,#e9f1dc)}
+    header{display:grid;grid-template-columns:1fr auto 1fr;align-items:flex-start;gap:10px;z-index:2}.brand{font-size:10px;letter-spacing:.2em;font-weight:900;color:var(--moss)}h1{margin:3px 0 0;font-size:31px;line-height:1;letter-spacing:-.07em}.day{padding:6px 10px;border:1px solid rgba(37,78,60,.12);border-radius:999px;background:rgba(255,255,255,.45);text-align:center;color:#607769;font-size:9px;white-space:nowrap}.day strong{display:block;margin-top:2px;color:var(--ink);font-size:11px}.score{justify-self:end;text-align:right}.score span{display:block;font-size:9px;letter-spacing:.14em;color:#6d826f}.score strong{font-size:28px;line-height:1}
+    .stage{position:relative;min-height:0;margin:10px 0 8px;overflow:hidden}.bottle{position:absolute;inset:0 4%;border:3px solid rgba(40,83,68,.22);border-radius:46% 46% 22% 22%/18% 18% 12% 12%;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(126,212,202,.21));box-shadow:inset 10px 0 24px rgba(255,255,255,.35),inset -12px 0 28px rgba(25,84,71,.08),0 20px 60px rgba(57,83,52,.12)}.bottle:before{content:"";position:absolute;z-index:4;left:33%;right:33%;top:-2px;height:23px;border:3px solid rgba(40,83,68,.24);border-top:0;border-radius:0 0 16px 16px;background:#edf1db}.bottle:after{content:"";position:absolute;z-index:4;left:11%;top:8%;width:8%;height:70%;border-radius:50%;background:linear-gradient(90deg,rgba(255,255,255,.03),rgba(255,255,255,.47),rgba(255,255,255,.02));transform:rotate(4deg)}canvas{display:block;width:100%;height:100%}
+    .event{position:absolute;z-index:5;left:50%;top:16px;transform:translate(-50%,-12px);opacity:0;padding:9px 13px;border-radius:999px;background:rgba(24,54,45,.88);color:white;font-size:11px;font-weight:800;transition:.25s;white-space:nowrap}.event.show{opacity:1;transform:translate(-50%,0)}
+    .panel{z-index:3;border-top:1px solid rgba(37,78,60,.14);padding-top:11px}.status{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:10px}.metric{display:grid;gap:4px}.metricTop{display:flex;justify-content:space-between;font-size:10px;color:#557063}.bar{height:5px;border-radius:8px;background:rgba(25,62,49,.1);overflow:hidden}.bar i{display:block;height:100%;width:50%;border-radius:inherit;background:var(--moss);transition:width .25s,background .25s}
+    .controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.control{min-height:70px;padding:9px 8px;border:1px solid rgba(35,75,58,.13);border-radius:18px;background:rgba(255,255,255,.54);display:grid;align-content:center;gap:5px;text-align:center;box-shadow:0 8px 22px rgba(46,77,51,.05)}.control label{font-size:11px;font-weight:850}.control small{font-size:9px;color:#6f8478}.control input{width:100%;accent-color:var(--moss)}.tap{cursor:pointer}.tap:active{transform:scale(.97);background:#e5efb8}.tap b{font-size:20px}.primary{grid-column:1/-1;min-height:48px;border-radius:16px;background:var(--ink);color:white;font-weight:900;letter-spacing:.04em;box-shadow:0 10px 24px rgba(22,54,45,.15)}
+    .cover,.result{position:fixed;z-index:10;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:32px 24px calc(30px + env(safe-area-inset-bottom));background:radial-gradient(circle at 62% 28%,rgba(149,218,191,.7),transparent 25%),radial-gradient(circle at 30% 35%,rgba(216,238,138,.8),transparent 24%),linear-gradient(180deg,#f6f3df 12%,#d8e8ca 72%,#b9d4bb);transition:.4s}.cover.hide{opacity:0;visibility:hidden;pointer-events:none}.cover:before{content:"";position:absolute;left:50%;top:14%;width:180px;height:260px;transform:translateX(-50%);border:4px solid rgba(24,54,45,.18);border-radius:44% 44% 22% 22%/17% 17% 12% 12%;background:linear-gradient(180deg,rgba(255,255,255,.4),rgba(98,201,182,.35));box-shadow:inset 18px 0 34px rgba(255,255,255,.4)}.cover:after{content:"✦  〰  ◌\A  𓆝  𓆟  𓆞";white-space:pre;position:absolute;left:50%;top:24%;transform:translateX(-50%);font-size:29px;line-height:2;color:rgba(24,80,63,.72);text-align:center}.kicker{position:relative;font-size:10px;letter-spacing:.22em;font-weight:900;color:var(--moss)}.cover h2,.result h2{position:relative;margin:8px 0 12px;font-size:54px;line-height:.92;letter-spacing:-.08em}.cover p,.result p{position:relative;margin:0 0 20px;color:#526d60;line-height:1.65;font-size:14px}.cover .primary{position:relative;width:100%}.result{display:none;justify-content:center;background:rgba(239,244,222,.94);backdrop-filter:blur(12px)}.result.show{display:flex}.result h2{font-size:48px}.result strong{color:#2b7958}.insight{margin:0 0 22px;padding-left:14px;border-left:3px solid var(--moss);font-size:12px;line-height:1.6;color:#526d60}
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="生态瓶系统模拟">
+    <header><div><div class="brand">AIYA SYSTEM LAB · 02</div><h1>生态瓶</h1></div><div class="day">模拟日<strong id="dayText">0 / 45</strong></div><div class="score"><span>生态平衡</span><strong id="score">72</strong></div></header>
+    <section class="stage"><div class="bottle"><canvas id="canvas"></canvas></div><div class="event" id="event">天气变化</div></section>
+    <section class="panel">
+      <div class="status">
+        <div class="metric"><div class="metricTop"><span>氧气</span><b id="oxygenText">65</b></div><div class="bar"><i id="oxygenBar"></i></div></div>
+        <div class="metric"><div class="metricTop"><span>水质</span><b id="waterText">76</b></div><div class="bar"><i id="waterBar"></i></div></div>
+        <div class="metric"><div class="metricTop"><span>鱼群</span><b id="fishText">68</b></div><div class="bar"><i id="fishBar"></i></div></div>
+      </div>
+      <div class="controls">
+        <div class="control"><label for="light">光照 <span id="lightValue">50</span></label><input id="light" type="range" min="0" max="100" value="50"><small>植物产氧，也会长藻</small></div>
+        <button class="control tap" id="feed"><b>＋</b><label>少量投喂</label><small>鱼需要，过量会污染</small></button>
+        <button class="control tap" id="change"><b>↻</b><label>换水 20%</label><small id="waterUses">剩余 3 次</small></button>
+        <button class="primary" id="pause">开始模拟</button>
+      </div>
+    </section>
+  </main>
+  <section class="cover" id="cover"><div class="kicker">一场关于“平衡”的实验</div><h2>养活一个<br>微型世界</h2><p>光越强不一定越好，食物越多也不一定更健康。请让这个生态瓶稳定运行 45 天。</p><button class="primary" id="start">开始实验</button></section>
+  <section class="result" id="result"><div class="kicker">系统观察报告</div><h2 id="resultTitle">生态平衡</h2><p id="resultText"></p><div class="insight" id="insight"></div><button class="primary" id="again">重新实验</button></section>
+  <script>
+    (()=>{
+      const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),cover=document.getElementById('cover'),result=document.getElementById('result');
+      const lightInput=document.getElementById('light'),eventEl=document.getElementById('event'),pauseBtn=document.getElementById('pause');
+      let w=0,h=0,dpr=1,running=false,finished=false,last=0,day=0,oxygen=65,water=76,fish=68,algae=28,food=35,waterUses=3,eventTimer=0,eventKind='',nextEvent=9;
+      const fishes=[],bubbles=[],plants=[];let raf=0;
+      function resize(){const box=canvas.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);w=Math.max(1,box.width);h=Math.max(1,box.height);canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);seed()}
+      function seed(){fishes.length=0;bubbles.length=0;plants.length=0;for(let i=0;i<7;i++)fishes.push({x:Math.random()*w,y:h*(.42+Math.random()*.35),vx:(Math.random()>.5?1:-1)*(.25+Math.random()*.35),s:5+Math.random()*4,hue:25+Math.random()*25});for(let i=0;i<22;i++)bubbles.push({x:Math.random()*w,y:Math.random()*h,s:1+Math.random()*2,vy:.18+Math.random()*.35});for(let i=0;i<9;i++)plants.push({x:w*(.08+i*.105),height:h*(.12+Math.random()*.18),phase:Math.random()*6})}
+      function clamp(v){return Math.max(0,Math.min(100,v))}
+      function color(v){return v<35?'#df704b':v<58?'#d4a942':'#4e8a5c'}
+      function updateMetrics(){const balance=Math.round((oxygen+water+fish)/3-Math.max(0,algae-68)*.25);document.getElementById('score').textContent=Math.max(0,balance);document.getElementById('dayText').textContent=`${Math.min(45,Math.floor(day))} / 45`;for(const [name,val] of [['oxygen',oxygen],['water',water],['fish',fish]]){document.getElementById(name+'Text').textContent=Math.round(val);const bar=document.getElementById(name+'Bar');bar.style.width=clamp(val)+'%';bar.style.background=color(val)}document.getElementById('lightValue').textContent=lightInput.value;document.getElementById('waterUses').textContent=`剩余 ${waterUses} 次`;return balance}
+      function showEvent(text){eventEl.textContent=text;eventEl.classList.add('show');clearTimeout(eventTimer);eventTimer=setTimeout(()=>eventEl.classList.remove('show'),1800);navigator.vibrate?.(25)}
+      function triggerEvent(){const events=[['cloud','连续阴天：产氧下降'],['heat','气温升高：藻类加速'],['clean','微生物活跃：水质改善']];const pick=events[Math.floor(Math.random()*events.length)];eventKind=pick[0];showEvent(pick[1]);setTimeout(()=>eventKind='',5000);nextEvent=day+9+Math.random()*5}
+      function step(dt){const light=Number(lightInput.value)/100;const factor=dt*.34;oxygen+=((light*1.55)-(fish*.011)-(algae*.006)+(eventKind==='cloud'?-.8:0))*factor;algae+=((light*.78)+(food*.006)+(eventKind==='heat'?.8:0)-.44)*factor;water+=(-food*.008-algae*.006+(eventKind==='clean'?.55:0))*factor;food-=fish*.004*factor;fish+=((oxygen>42&&water>42&&food>10)?.28:-.78)*factor;if(oxygen>88)fish-=.15*factor;if(food<5)fish-=.4*factor;oxygen=clamp(oxygen);water=clamp(water);fish=clamp(fish);algae=clamp(algae);food=clamp(food);day+=dt*.72;if(day>=nextEvent)triggerEvent();const balance=updateMetrics();if(day>=45||fish<=3||water<=3){finish(balance)}}
+      function draw(t){
+        ctx.clearRect(0,0,w,h);const waterGrad=ctx.createLinearGradient(0,h*.18,0,h);waterGrad.addColorStop(0,`rgba(${125+algae*.4},220,205,.25)`);waterGrad.addColorStop(1,`rgba(${38+algae*.8},132,119,.72)`);ctx.fillStyle=waterGrad;ctx.fillRect(0,h*.18,w,h*.82);
+        ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<=w;x+=8){const y=h*.18+Math.sin(x*.05+t*.002)*2;ctx.lineTo(x,y)}ctx.stroke();
+        plants.forEach((p,i)=>{const health=Math.max(.2,water/100);ctx.strokeStyle=`rgba(54,${95+oxygen},65,${.45+health*.45})`;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,h);for(let s=1;s<=5;s++){const y=h-p.height*s/5,x=p.x+Math.sin(t*.0015+p.phase+s*.8)*5*health;ctx.lineTo(x,y)}ctx.stroke();});
+        ctx.fillStyle=`rgba(100,145,63,${algae/260})`;for(let i=0;i<28;i++){const x=(i*47%w),y=h*(.22+((i*31)%70)/100);ctx.beginPath();ctx.arc(x,y,2+(i%4),0,Math.PI*2);ctx.fill()}
+        fishes.forEach((f,i)=>{f.x+=f.vx*(.5+fish/80);if(f.x<-16){f.x=w+16}else if(f.x>w+16){f.x=-16}const yy=f.y+Math.sin(t*.002+i)*5;ctx.save();ctx.translate(f.x,yy);ctx.scale(f.vx>0?1:-1,1);ctx.globalAlpha=.2+fish/125;ctx.fillStyle=`hsl(${f.hue},82%,58%)`;ctx.beginPath();ctx.ellipse(0,0,f.s*1.4,f.s*.72,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(-f.s,0);ctx.lineTo(-f.s*2,-f.s*.75);ctx.lineTo(-f.s*2,f.s*.75);ctx.closePath();ctx.fill();ctx.restore()});
+        bubbles.forEach(b=>{b.y-=b.vy*(.4+oxygen/55);if(b.y<h*.18){b.y=h;b.x=Math.random()*w}ctx.strokeStyle='rgba(236,255,249,.42)';ctx.beginPath();ctx.arc(b.x,b.y,b.s,0,Math.PI*2);ctx.stroke()});
+        ctx.fillStyle='rgba(56,67,36,.45)';ctx.fillRect(0,h*.94,w,h*.06);ctx.fillStyle='rgba(231,222,165,.55)';for(let i=0;i<22;i++){ctx.beginPath();ctx.arc((i*43)%w,h*.95+(i%4)*4,2+i%3,0,Math.PI*2);ctx.fill()}
+      }
+      function frame(t){const dt=Math.min(.04,(t-last)/1000||0);last=t;if(running&&!finished)step(dt);draw(t);raf=requestAnimationFrame(frame)}
+      function start(){cover.classList.add('hide');result.classList.remove('show');oxygen=65;water=76;fish=68;algae=28;food=35;waterUses=3;day=0;nextEvent=9;eventKind='';finished=false;running=true;pauseBtn.textContent='暂停观察';updateMetrics()}
+      function finish(balance){running=false;finished=true;const survived=day>=45&&fish>3;const stable=balance>=62;document.getElementById('resultTitle').textContent=survived?(stable?'稳定共生':'勉强存活'):'系统失衡';document.getElementById('resultText').innerHTML=survived?`你让生态瓶运行了 <strong>45 天</strong>，最终平衡值为 <strong>${Math.max(0,Math.round(balance))}</strong>。`:`生态瓶在第 <strong>${Math.max(1,Math.round(day))} 天</strong>失去平衡。`;document.getElementById('insight').textContent=stable?'你没有追求单项最大值，而是让光照、食物、水质和氧气互相制约——这就是系统思维。':'某个指标过高也会破坏整体。下一轮尝试少量投喂，并让光照保持在中间范围。';result.classList.add('show');navigator.vibrate?.(stable?[35,40,60]:[80,50,80])}
+      document.getElementById('feed').addEventListener('click',()=>{if(!running)return;food=clamp(food+18);water=clamp(water-3);showEvent('投喂完成：注意水质变化')});document.getElementById('change').addEventListener('click',()=>{if(!running||waterUses<=0)return;waterUses--;water=clamp(water+22);algae=clamp(algae-13);oxygen=clamp(oxygen+5);showEvent('换水完成：系统正在重新平衡')});
+      lightInput.addEventListener('input',updateMetrics);pauseBtn.addEventListener('click',()=>{if(finished)return;if(!running&&day===0){start();return}running=!running;pauseBtn.textContent=running?'暂停观察':'继续模拟'});document.getElementById('start').addEventListener('click',start);document.getElementById('again').addEventListener('click',start);addEventListener('resize',resize);addEventListener('contextmenu',e=>e.preventDefault());addEventListener('pagehide',()=>cancelAnimationFrame(raf));
+      updateMetrics();resize();raf=requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

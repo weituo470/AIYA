@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#00c98b" />
+  <title>AIYA V3 进阶创作指南</title>
+  <style>
+    :root {
+      --ink: #06251d;
+      --muted: #60736d;
+      --paper: #f4fbf8;
+      --white: #ffffff;
+      --line: rgba(6, 37, 29, .14);
+      --green: #00c98b;
+      --green-dark: #008f68;
+      --lime: #dfff72;
+      --warning: #ffbe45;
+      --radius: 28px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, a { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    ::selection { background: var(--lime); color: var(--ink); }
+
+    .scroll-progress {
+      position: fixed;
+      z-index: 100;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 5px;
+      background: var(--green);
+      transition: width .1s linear;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 83% 20%, rgba(223,255,114,.92) 0 10%, transparent 30%),
+        linear-gradient(135deg, #dffdf3 0%, #f8fffd 52%, #d9f8ef 100%);
+      border-bottom: 1px solid var(--line);
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .26;
+      background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 54px 54px;
+      mask-image: linear-gradient(to bottom, #000, transparent 88%);
+    }
+    .hero-inner {
+      position: relative;
+      width: min(1180px, calc(100% - 40px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(330px, .7fr);
+      align-items: center;
+      gap: clamp(44px, 7vw, 100px);
+      padding: 76px 0 56px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 34px;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      color: white;
+      background: var(--ink);
+      border-radius: 11px;
+    }
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--green-dark);
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    h1 {
+      max-width: 780px;
+      margin: 0;
+      font-size: clamp(48px, 7.4vw, 102px);
+      line-height: .98;
+      letter-spacing: -.06em;
+    }
+    .hero-copy {
+      max-width: 650px;
+      margin: 26px 0 34px;
+      color: var(--muted);
+      font-size: clamp(17px, 2vw, 22px);
+    }
+    .hero-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 22px;
+      color: white;
+      background: var(--ink);
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 900;
+      box-shadow: 0 16px 36px rgba(6,37,29,.18);
+      transition: transform .2s ease, background .2s ease;
+    }
+    .hero-action:hover { transform: translateY(-3px); background: var(--green-dark); }
+
+    .phone {
+      position: relative;
+      width: min(390px, 88vw);
+      aspect-ratio: .58;
+      justify-self: center;
+      padding: 18px;
+      background: var(--ink);
+      border-radius: 52px;
+      box-shadow: 0 42px 90px rgba(6,37,29,.22), inset 0 0 0 2px rgba(255,255,255,.18);
+      transform: rotate(3deg);
+      animation: phoneEnter .8s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .phone-screen {
+      height: 100%;
+      padding: 44px 25px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+      border-radius: 38px;
+      background: linear-gradient(180deg, #e7fff7, #fff 70%);
+    }
+    .phone-label { align-self: flex-start; color: var(--green-dark); font-size: 13px; font-weight: 900; }
+    .phone-title { align-self: flex-start; margin: 4px 0 36px; font-size: 28px; font-weight: 1000; }
+    .timer { width: 100%; display: flex; justify-content: space-between; color: var(--muted); font-weight: 800; }
+    .score { margin: 28px 0 12px; font-size: 112px; font-weight: 1000; line-height: 1; letter-spacing: -.08em; }
+    .target { color: var(--muted); font-size: 14px; }
+    .tap-button {
+      width: 172px;
+      height: 172px;
+      margin-top: 34px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      background: var(--lime);
+      border: 0;
+      border-radius: 50%;
+      font-size: 28px;
+      font-weight: 1000;
+      box-shadow: 0 14px 0 #9ac338, 0 26px 38px rgba(91,129,23,.22);
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+    .phone-foot { margin-top: auto; color: var(--muted); font-size: 12px; }
+    .spark { position: absolute; width: 15px; height: 15px; background: var(--warning); transform: rotate(45deg); animation: sparkle 1.7s ease-in-out infinite; }
+    .spark.s1 { top: 16%; right: -8%; }
+    .spark.s2 { top: 41%; left: -12%; animation-delay: .6s; background: var(--green); }
+
+    .layout {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: clamp(36px, 7vw, 96px);
+      padding: 90px 0 120px;
+    }
+    .rail { position: sticky; top: 34px; align-self: start; }
+    .rail-title { margin-bottom: 20px; color: var(--muted); font-size: 12px; font-weight: 900; letter-spacing: .12em; }
+    .rail a {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 9px;
+      padding: 10px 0;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid var(--line);
+      transition: color .2s ease, transform .2s ease;
+    }
+    .rail a:hover { color: var(--green-dark); transform: translateX(4px); }
+    .rail b { color: var(--ink); }
+
+    .content { min-width: 0; }
+    .section {
+      scroll-margin-top: 30px;
+      padding: 0 0 92px;
+      margin-bottom: 86px;
+      border-bottom: 1px solid var(--line);
+    }
+    .section:last-child { border: 0; margin-bottom: 0; }
+    .step {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--green-dark);
+      font-size: 13px;
+      font-weight: 1000;
+      letter-spacing: .08em;
+    }
+    .step::before { content: ""; width: 34px; height: 5px; background: var(--green); border-radius: 9px; }
+    h2 { margin: 14px 0 18px; font-size: clamp(34px, 5vw, 62px); line-height: 1.08; letter-spacing: -.045em; }
+    h3 { margin: 36px 0 12px; font-size: 22px; }
+    .lead { max-width: 760px; margin: 0 0 32px; color: var(--muted); font-size: 18px; }
+    .principle {
+      margin: 34px 0;
+      padding: 24px 0 24px 28px;
+      border-left: 7px solid var(--green);
+      font-size: clamp(22px, 3.3vw, 34px);
+      font-weight: 1000;
+      line-height: 1.35;
+    }
+    .prompt {
+      position: relative;
+      margin: 18px 0;
+      padding: 26px 76px 26px 26px;
+      color: white;
+      background: var(--ink);
+      border-radius: 22px;
+      font-size: 17px;
+      box-shadow: 0 16px 36px rgba(6,37,29,.12);
+    }
+    .prompt p { margin: 0; }
+    .copy {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      padding: 9px 12px;
+      color: var(--ink);
+      background: var(--lime);
+      border: 0;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 1000;
+    }
+    .copy.copied { background: white; }
+    .formula {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 24px 0;
+    }
+    .formula span { padding: 9px 13px; background: white; border: 1px solid var(--line); border-radius: 999px; font-weight: 900; }
+    .formula i { color: var(--green-dark); font-style: normal; font-weight: 1000; }
+
+    .checklist { margin: 26px 0 0; padding: 0; list-style: none; }
+    .checklist li { border-top: 1px solid var(--line); }
+    .checklist label {
+      display: flex;
+      gap: 13px;
+      align-items: flex-start;
+      padding: 15px 2px;
+      cursor: pointer;
+    }
+    .checklist input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--green); }
+    .checklist input:checked + span { color: var(--muted); text-decoration: line-through; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 28px 0; }
+    .compare > div { padding: 24px; border-radius: 22px; background: white; border: 1px solid var(--line); }
+    .compare .bad { background: #fff6ed; }
+    .compare small { display: block; margin-bottom: 10px; color: var(--muted); font-weight: 900; }
+    .compare p { margin: 0; font-weight: 800; }
+    .boundary {
+      margin-top: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: white;
+    }
+    .boundary > div { padding: 28px; }
+    .boundary > div + div { border-left: 1px solid var(--line); }
+    .boundary h3 { margin-top: 0; }
+    .boundary ul { padding-left: 20px; margin-bottom: 0; }
+    .boundary li { margin: 7px 0; }
+    .finish {
+      padding: clamp(34px, 6vw, 70px);
+      color: white;
+      background: var(--ink);
+      border-radius: 34px;
+    }
+    .finish h2 { max-width: 720px; }
+    .finish .lead { color: rgba(255,255,255,.68); }
+    .finish-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 38px; background: rgba(255,255,255,.18); }
+    .finish-grid div { padding: 26px 18px; background: var(--ink); }
+    .finish-grid b { display: block; color: var(--lime); font-size: 24px; }
+    .footer { padding: 30px 20px 70px; color: var(--muted); text-align: center; font-size: 13px; }
+
+    @keyframes phoneEnter { from { opacity: 0; transform: translateY(60px) rotate(8deg) scale(.92); } to { opacity: 1; transform: rotate(3deg); } }
+    @keyframes pulse { 50% { transform: translateY(5px); box-shadow: 0 9px 0 #9ac338, 0 18px 24px rgba(91,129,23,.18); } }
+    @keyframes sparkle { 0%,100% { transform: rotate(45deg) scale(.5); opacity: .35; } 50% { transform: rotate(135deg) scale(1.35); opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+
+    @media (max-width: 860px) {
+      .hero { min-height: auto; }
+      .hero-inner { grid-template-columns: 1fr; padding-top: 52px; text-align: left; }
+      .phone { width: min(340px, 84vw); margin: 12px auto 48px; }
+      .layout { grid-template-columns: 1fr; padding-top: 56px; }
+      .rail { position: static; display: none; }
+      .section { padding-bottom: 64px; margin-bottom: 58px; }
+    }
+    @media (max-width: 620px) {
+      .hero-inner, .layout { width: min(100% - 28px, 1180px); }
+      .brand { margin-bottom: 24px; }
+      .hero-copy { margin-top: 20px; }
+      .compare, .boundary, .finish-grid { grid-template-columns: 1fr; }
+      .boundary > div + div { border-left: 0; border-top: 1px solid var(--line); }
+      .prompt { padding: 64px 20px 22px; }
+      .finish { border-radius: 26px; }
+    }
+    @media print {
+      .scroll-progress, .hero-action, .copy, .rail { display: none !important; }
+      .hero { min-height: auto; background: white; }
+      .hero-inner { grid-template-columns: 1fr; padding: 30px 0; }
+      .phone { display: none; }
+      .layout { display: block; padding: 20px 0; }
+      .section { break-inside: avoid; padding-bottom: 30px; margin-bottom: 30px; }
+      .prompt { color: var(--ink); background: #eef5f2; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scroll-progress" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <div class="brand"><span class="brand-mark">A</span> AIYA V3 · 进阶创作指南</div>
+        <p class="eyebrow">一条经过验证的完整创作路线</p>
+        <h1>不要一次做完。<br />要一轮比一轮好。</h1>
+        <p class="hero-copy">用一个“30秒点按挑战”，走完需求、开发、试玩、修改、回滚和打包，掌握 AIYA 最稳定也最强的使用方式。</p>
+        <a class="hero-action" href="#goal">开始这次创作 <span>↓</span></a>
+      </div>
+      <div class="phone" aria-label="30秒点按挑战成品示意">
+        <span class="spark s1"></span><span class="spark s2"></span>
+        <div class="phone-screen">
+          <div class="phone-label">AIYA 作品</div>
+          <div class="phone-title">点按挑战</div>
+          <div class="timer"><span>剩余 18 秒</span><span>目标 20</span></div>
+          <div class="score">14</div>
+          <div class="target">再点 6 次完成挑战</div>
+          <button class="tap-button" type="button" tabindex="-1">点我</button>
+          <div class="phone-foot">按下反馈 · 结束锁定 · 成功庆祝</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <nav class="rail" aria-label="指南目录">
+      <div class="rail-title">完整流程 · 约 12 分钟</div>
+      <a href="#goal"><b>01</b><span>先定义完成</span></a>
+      <a href="#round1"><b>02</b><span>做最小版本</span></a>
+      <a href="#test"><b>03</b><span>先试玩再修改</span></a>
+      <a href="#round2"><b>04</b><span>增加游戏规则</span></a>
+      <a href="#round3"><b>05</b><span>增加表现力</span></a>
+      <a href="#version"><b>06</b><span>版本与回滚</span></a>
+      <a href="#deliver"><b>07</b><span>带走作品</span></a>
+      <a href="#boundary"><b>08</b><span>知道能力边界</span></a>
+    </nav>
+
+    <div class="content">
+      <section class="section" id="goal">
+        <span class="step">01 · 开始之前</span>
+        <h2>先决定怎样才算“做好了”</h2>
+        <p class="lead">AIYA 不怕需求短，怕的是结果无法验证。先写出三个看得见、点得动、能判断的目标。</p>
+        <div class="principle">目标不是“做一个好玩的游戏”，而是“我怎样知道它已经可以玩”。</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox" /><span>点击主按钮，分数每次准确增加 1。</span></label></li>
+          <li><label><input type="checkbox" /><span>30 秒结束后停止计分，并显示最终结果。</span></label></li>
+          <li><label><input type="checkbox" /><span>达到 20 分时出现明确的成功反馈。</span></label></li>
+        </ul>
+        <h3>一个稳定需求的五块积木</h3>
+        <div class="formula"><span>作品目标</span><i>＋</i><span>页面结构</span><i>＋</i><span>操作方式</span><i>＋</i><span>状态变化</span><i>＋</i><span>完成条件</span></div>
+      </section>
+
+      <section class="section" id="round1">
+        <span class="step">02 · 第一轮</span>
+        <h2>先做一个一定能玩的最小版本</h2>
+        <p class="lead">第一轮只验证核心互动。不要同时加入倒计时、音效、排行榜和复杂动画。</p>
+        <div class="prompt" data-prompt>
+          <button class="copy" type="button">复制</button>
+          <p>做一个手机端点按计分小游戏。页面中间有一个醒目的绿色圆形按钮，每点击一次分数加1；页面下方有清零按钮。界面要适合单手操作，文字和按钮不能超出手机屏幕。</p>
+        </div>
+        <div class="compare">
+          <div class="bad"><small>不稳定的说法</small><p>做一个特别好玩的点击游戏，功能丰富一点。</p></div>
+          <div><small>稳定的说法</small><p>说清按钮、操作、结果和手机布局，第一轮只做核心互动。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="test">
+        <span class="step">03 · 试玩验收</span>
+        <h2>代码完成，不等于作品完成</h2>
+        <p class="lead">进入“试玩”，亲手完成一次真实操作。没有试玩过的功能，不进入下一轮。</p>
+        <ul class="checklist">
+          <li><label><input type="checkbox" /><span>连续点击 20 次，分数没有漏加或重复增加。</span></label></li>
+          <li><label><input type="checkbox" /><span>清零后可以重新开始，旧分数没有残留。</span></label></li>
+          <li><label><input type="checkbox" /><span>长按按钮不会选中文字或弹出复制菜单。</span></label></li>
+          <li><label><input type="checkbox" /><span>不同尺寸手机上，主按钮和清零按钮都能完整看到。</span></label></li>
+        </ul>
+        <div class="principle">先找出一个最值得改的问题。一次修改，只解决一个层级的问题。</div>
+      </section>
+
+      <section class="section" id="round2">
+        <span class="step">04 · 第二轮</span>
+        <h2>在可玩版本上增加完整规则</h2>
+        <p class="lead">明确写出“保留什么、增加什么、什么时候结束”，避免模型误解为重做整个项目。</p>
+        <div class="prompt" data-prompt>
+          <button class="copy" type="button">复制</button>
+          <p>继续修改当前项目，保留现有计分和清零功能。增加30秒倒计时和“开始挑战”按钮；点击开始后才允许计分，时间结束后锁定点击并显示最终分数。再次点击开始时要完整重置上一局状态。</p>
+        </div>
+        <h3>这一轮只验证状态</h3>
+        <ul class="checklist">
+          <li><label><input type="checkbox" /><span>没有点击“开始挑战”时，点击主按钮不会计分。</span></label></li>
+          <li><label><input type="checkbox" /><span>倒计时只运行一次，不会越点越快。</span></label></li>
+          <li><label><input type="checkbox" /><span>时间结束后无法继续加分。</span></label></li>
+          <li><label><input type="checkbox" /><span>第二局从 30 秒和 0 分重新开始。</span></label></li>
+        </ul>
+      </section>
+
+      <section class="section" id="round3">
+        <span class="step">05 · 第三轮</span>
+        <h2>最后才增加让人记住的表现力</h2>
+        <p class="lead">动效、声音和震动必须服务于反馈，而不是到处出现。所有声音都应在用户第一次操作之后播放。</p>
+        <div class="prompt" data-prompt>
+          <button class="copy" type="button">复制</button>
+          <p>继续完善当前点按挑战，不改变已有规则。作品名称改为“点按挑战”（不超过5个汉字）。目标设为20分：达到目标时显示绿色成功画面和简短粒子庆祝；未达到时显示“再试一次”。主按钮按下时提供轻微缩放反馈；移动端支持时加入短震动。声音只能在用户点击开始后播放，并提供明显的声音开关。</p>
+        </div>
+        <ul class="checklist">
+          <li><label><input type="checkbox" /><span>成功与未成功的结果一眼可以区分。</span></label></li>
+          <li><label><input type="checkbox" /><span>庆祝动画不会遮挡“再来一局”按钮。</span></label></li>
+          <li><label><input type="checkbox" /><span>关闭声音后，下一局仍保持静音。</span></label></li>
+          <li><label><input type="checkbox" /><span>不支持震动的设备仍可正常游戏。</span></label></li>
+        </ul>
+      </section>
+
+      <section class="section" id="version">
+        <span class="step">06 · 留住成果</span>
+        <h2>每轮只前进一步，随时可以退回来</h2>
+        <p class="lead">第二轮或第三轮效果不理想时，先在试玩页回滚到上一个可用版本，再重新描述修改，不要在错误版本上叠加补丁。</p>
+        <div class="principle">能玩的版本先留住；一次只向前走一步。</div>
+        <div class="prompt" data-prompt>
+          <button class="copy" type="button">复制</button>
+          <p>继续修改当前项目。只修复倒计时重复启动的问题，其他布局、颜色、计分规则和成功动画全部保持不变。</p>
+        </div>
+        <h3>遇到失败时的顺序</h3>
+        <ol>
+          <li>确认当前任务是否仍在开发，不连续重复提交。</li>
+          <li>失败时先重试一次；网络异常先切换网络。</li>
+          <li>仍不正常就回滚，再把修改范围缩小。</li>
+          <li>保留诊断 ID，便于后台定位完整过程。</li>
+        </ol>
+      </section>
+
+      <section class="section" id="deliver">
+        <span class="step">07 · 带走作品</span>
+        <h2>交付前，完成最后一局真实测试</h2>
+        <p class="lead">不要把“生成成功”当作交付。用普通用户的方式从开始到结束玩一局，再选择合适的带走方式。</p>
+        <ul class="checklist">
+          <li><label><input type="checkbox" /><span>从首页进入游戏、完成一局、再来一局，全程没有死路。</span></label></li>
+          <li><label><input type="checkbox" /><span>按钮文字简短清楚，手机上没有被键盘或底栏遮挡。</span></label></li>
+          <li><label><input type="checkbox" /><span>作品名称控制在 5 个汉字以内，例如“点按挑战”。</span></label></li>
+        </ul>
+        <div class="boundary">
+          <div><h3>下载 HTML</h3><p>适合保存、发送给朋友或在浏览器打开。文件最轻，分享最快。</p></div>
+          <div><h3>生成 APK</h3><p>适合安装到安卓桌面，像普通应用一样打开。发布前务必再测试安装包。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="boundary">
+        <span class="step">08 · 真正的进阶</span>
+        <h2>知道什么时候该继续，什么时候该停</h2>
+        <p class="lead">AIYA V3 最擅长快速制作单页互动应用、小游戏和学习工具。理解边界，反而更容易做出稳定作品。</p>
+        <div class="boundary">
+          <div>
+            <h3>适合直接用 AIYA</h3>
+            <ul><li>计分、计时、测验和计算工具</li><li>儿童互动、反应游戏和轻量小游戏</li><li>单机运行、状态清晰的手机页面</li><li>可以通过多轮试玩逐步完善的作品</li></ul>
+          </div>
+          <div>
+            <h3>不应只靠一次生成</h3>
+            <ul><li>支付、账户和敏感个人数据</li><li>大型多人在线游戏</li><li>复杂服务器、数据库和长期运营系统</li><li>无法通过手机试玩验证的模糊目标</li></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="finish">
+        <span class="step">完成标准</span>
+        <h2>你不是让 AI 写了一段代码。你完成了一次产品迭代。</h2>
+        <p class="lead">需求可验证、每轮能试玩、错误能回滚、成品能带走——这就是 AIYA V3 希望建立的第一种 AI 编程能力。</p>
+        <div class="finish-grid">
+          <div><b>3 轮</b><span>从核心互动到完整体验</span></div>
+          <div><b>1 个</b><span>始终可回退的稳定版本</span></div>
+          <div><b>2 种</b><span>HTML 与 APK 交付方式</span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">AIYA V3 用户最佳实践 · 进阶引导 · 2026</footer>
+
+  <script>
+    const progress = document.querySelector('.scroll-progress');
+    const updateProgress = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const value = max > 0 ? Math.min(100, Math.max(0, window.scrollY / max * 100)) : 0;
+      progress.style.width = value + '%';
+    };
+    addEventListener('scroll', updateProgress, { passive: true });
+    addEventListener('resize', updateProgress);
+    updateProgress();
+
+    document.querySelectorAll('[data-prompt]').forEach((block) => {
+      const button = block.querySelector('.copy');
+      const text = block.querySelector('p').textContent.trim();
+      button.addEventListener('click', () => {
+        const fallbackCopy = () => {
+          const area = document.createElement('textarea');
+          area.value = text;
+          area.setAttribute('readonly', '');
+          area.style.position = 'fixed';
+          area.style.opacity = '0';
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand('copy');
+          area.remove();
+        };
+
+        // Give immediate feedback. Some embedded Android browsers keep the
+        // Clipboard promise pending while they resolve permissions.
+        button.textContent = '已复制';
+        button.classList.add('copied');
+        fallbackCopy();
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(text).catch(() => {});
+        }
+        setTimeout(() => { button.textContent = '复制'; button.classList.remove('copied'); }, 1600);
+      });
+    });
+  </script>
+</body>
+</html>

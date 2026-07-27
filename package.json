@@ -1,0 +1,28 @@
+{
+  "name": "aiya-ai-coding-education",
+  "version": "0.6.60",
+  "private": true,
+  "description": "AIYA AI 编程入门：从一句想法到可试玩、可迭代、可带走的作品。",
+  "license": "Apache-2.0",
+  "author": "君维",
+  "packageManager": "pnpm@10.16.0",
+  "scripts": {
+    "dev": "pnpm --filter @aiya/web dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write .",
+    "android:build": "pnpm --filter @aiya/android-v3 build",
+    "create-runner": "pnpm --filter @aiya/create-runner dev",
+    "dev-runner": "pnpm --filter @aiya/dev-runner dev",
+    "test:create-runner": "pnpm --filter @aiya/create-runner smoke",
+    "test:create-theatre-core": "tsx apps/web/scripts/check-create-theatre-core.ts",
+    "test:apk-builder": "pnpm --filter @aiya/apk-builder test:body-runtime"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.0",
+    "tsx": "^4.22.4",
+    "turbo": "^2.5.4",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>AIYA 体感能力验收</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; background: #eefbf7; color: #073b31; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom)); background: linear-gradient(160deg,#e8fff8,#fff 48%,#eef4ff); }
+    main { max-width: 680px; margin: 0 auto; }
+    h1 { margin: 2px 0 6px; font-size: 29px; line-height: 1.15; }
+    .lead { margin: 0 0 14px; color: #55736c; font-size: 14px; }
+    .modes { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin: 12px 0; }
+    .mode { min-height: 48px; border: 1px solid #c9ddd7; border-radius: 14px; background: #fff; color: #365b53; font-weight: 700; }
+    .mode.active { color: #fff; background: #00a97a; border-color: #00a97a; box-shadow: 0 8px 18px rgba(0,169,122,.2); }
+    .panel { border: 1px solid #d8e9e4; border-radius: 22px; background: rgba(255,255,255,.92); padding: 14px; box-shadow: 0 16px 40px rgba(22,85,70,.08); }
+    .preview { position: relative; min-height: 235px; overflow: hidden; border-radius: 17px; background: #12231f; display: grid; place-items: center; }
+    video { width: 100%; height: 320px; object-fit: cover; transform: scaleX(-1); display: none; }
+    .placeholder { padding: 28px; color: #c7ded7; text-align: center; line-height: 1.65; }
+    .metric { margin-top: 12px; padding: 14px; min-height: 118px; border-radius: 16px; background: #f2faf7; white-space: pre-wrap; font: 700 16px/1.65 ui-monospace, monospace; }
+    .status { margin: 12px 0 0; min-height: 24px; color: #5b716c; font-weight: 650; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .action { min-height: 54px; border: 0; border-radius: 16px; font-size: 17px; font-weight: 800; }
+    #start { color: #fff; background: #00bd82; }
+    #stop { color: #23443c; background: #e8f1ee; }
+    .ok { display: inline-block; margin-left: 8px; padding: 3px 9px; border-radius: 999px; background: #d9f8ec; color: #007d5a; font-size: 12px; vertical-align: 4px; }
+    .warn { color: #a7462b; }
+    button { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>AIYA 体感能力验收 <span class="ok">本地识别</span></h1>
+  <p class="lead">依次测试人脸、手势、口哨和手机动作。画面与声音只在本机内存中处理，不上传。</p>
+  <div class="modes">
+    <button class="mode active" data-mode="face">人脸</button>
+    <button class="mode" data-mode="gesture">手势</button>
+    <button class="mode" data-mode="whistle">口哨</button>
+    <button class="mode" data-mode="motion">动作</button>
+  </div>
+  <section class="panel">
+    <div class="preview">
+      <video id="camera" autoplay muted playsinline></video>
+      <div id="placeholder" class="placeholder">当前测试：左右眼、张嘴、微笑和鬼脸分值<br>点击“开始当前测试”后允许相机权限</div>
+    </div>
+    <div id="metric" class="metric">等待开始</div>
+    <div id="status" class="status">尚未申请任何权限</div>
+    <div class="actions">
+      <button id="start" class="action">开始当前测试</button>
+      <button id="stop" class="action">停止</button>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  /* 所有识别结果只保存在这些内存变量中。 */
+  var mode = 'face';
+  var stream = null;
+  var visionSession = null;
+  var pitchTracker = null;
+  var pitchTimer = 0;
+  var camera = document.getElementById('camera');
+  var placeholder = document.getElementById('placeholder');
+  var metric = document.getElementById('metric');
+  var status = document.getElementById('status');
+  var modeCopy = {
+    face: '当前测试：左右眼、张嘴、微笑和鬼脸分值\n点击“开始当前测试”后允许相机权限',
+    gesture: '当前测试：石头、剪刀、布、点赞等手势\n点击“开始当前测试”后允许相机权限',
+    whistle: '当前测试：口哨频率、清晰度和音量\n点击“开始当前测试”后允许麦克风权限',
+    motion: '当前测试：左右前后倾斜、转向和摇一摇\n点击开始后保持手机自然姿势完成校准'
+  };
+
+  function setStatus(text, isError) {
+    status.textContent = text;
+    status.className = isError ? 'status warn' : 'status';
+  }
+
+  function format(value, digits) {
+    var number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits == null ? 2 : digits) : '--';
+  }
+
+  function renderFace(result) {
+    if (!result || !result.ok) {
+      metric.textContent = '人脸识别错误：' + String(result && (result.message || result.error) || '未知错误');
+      return;
+    }
+    if (!result.faceDetected) {
+      metric.textContent = '没有检测到人脸\n请把脸完整放入画面';
+      return;
+    }
+    metric.textContent = [
+      '人脸：已检测  推理 ' + result.inferenceMs + 'ms',
+      '目光 ' + String(result.gazeDirectionZh || result.gazeDirection || '--') + '  X ' + format(result.gazeX, 3) + '  Y ' + format(result.gazeY, 3),
+      '左眼开放 ' + format(result.leftEyeOpen) + '  右眼开放 ' + format(result.rightEyeOpen),
+      '张嘴 ' + format(result.mouthOpenScore) + '  微笑 ' + format(result.smileScore),
+      '鬼脸分 ' + format(result.weirdnessScore) + '  不对称 ' + format(result.asymmetryScore)
+    ].join('\n');
+  }
+
+  function renderGesture(result) {
+    if (!result || !result.ok) {
+      metric.textContent = '手势识别错误：' + String(result && (result.message || result.error) || '未知错误');
+      return;
+    }
+    metric.textContent = result.handDetected
+      ? '手势：' + result.gestureZh + '\n模型标签：' + result.gesture + '\n置信度：' + format(result.confidence, 3) + '\n识别耗时：' + result.inferenceMs + 'ms'
+      : '没有检测到手\n请把一只手完整放入画面';
+  }
+
+  function renderMotion(result) {
+    metric.textContent = [
+      '动作：' + String(result.action || 'steady'),
+      '左右倾斜 ' + format(result.tiltX) + '°  前后倾斜 ' + format(result.tiltY) + '°',
+      '转向 ' + format(result.turn) + '°',
+      '加速度 ' + format(result.acceleration) + '  摇晃 ' + (result.shake ? '是' : '否')
+    ].join('\n');
+  }
+
+  async function stopAll() {
+    if (visionSession) { visionSession.stop(); visionSession = null; }
+    if (pitchTimer) { clearInterval(pitchTimer); pitchTimer = 0; }
+    if (pitchTracker) { try { await pitchTracker.stop(); } catch (error) {} pitchTracker = null; }
+    if (window.AiyaBodyMotion) { try { window.AiyaBodyMotion.stop(); } catch (error) {} }
+    if (stream) {
+      stream.getTracks().forEach(function (track) { track.stop(); });
+      stream = null;
+    }
+    camera.srcObject = null;
+    camera.style.display = 'none';
+    placeholder.style.display = 'block';
+  }
+
+  async function startVision() {
+    if (!window.AiyaBodyVisionRuntime) throw new Error('当前 APK 没有 AiyaBodyVisionRuntime');
+    var capabilities = window.AiyaBodyVisionRuntime.capabilities();
+    if (!capabilities.ok || !capabilities.face || !capabilities.gesture) throw new Error('本地视觉模型不可用');
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    camera.srcObject = stream;
+    await camera.play();
+    camera.style.display = 'block';
+    placeholder.style.display = 'none';
+    visionSession = window.AiyaBodyVisionRuntime.start({
+      video: camera,
+      mode: mode,
+      fps: 5,
+      maxEdge: 320,
+      onResult: mode === 'face' ? renderFace : renderGesture,
+      onError: function (error) { setStatus('识别失败：' + String(error && error.message || error), true); }
+    });
+    setStatus('识别中，可连续改变表情或手势');
+  }
+
+  async function startWhistle() {
+    if (!window.AiyaBodyAudio) throw new Error('当前 APK 没有 AiyaBodyAudio');
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      video: false
+    });
+    pitchTracker = await window.AiyaBodyAudio.createPitchTracker(stream, { whistleMinHz: 700, whistleMaxHz: 4000, whistleClarity: 0.62 });
+    pitchTimer = setInterval(function () {
+      var result = pitchTracker.sample();
+      metric.textContent = [
+        '频率 ' + format(result.frequency, 1) + ' Hz',
+        '清晰度 ' + format(result.clarity, 3),
+        '音量 RMS ' + format(result.rms, 4),
+        '口哨判断：' + (result.isWhistle ? '通过' : '未达到')
+      ].join('\n');
+    }, 100);
+    setStatus('正在监听；先普通说话，再吹一个稳定口哨进行对比');
+  }
+
+  async function startMotion() {
+    if (!window.AiyaBodyMotion || !window.AiyaBodyMotion.supported) throw new Error('当前设备不支持动作传感器');
+    await window.AiyaBodyMotion.start(renderMotion);
+    window.AiyaBodyMotion.calibrate();
+    renderMotion(window.AiyaBodyMotion.current());
+    setStatus('已按当前姿势校准；请倾斜、转动或摇动手机');
+  }
+
+  async function startCurrent() {
+    await stopAll();
+    metric.textContent = '正在启动…';
+    setStatus('正在申请当前测试所需权限');
+    try {
+      if (mode === 'face' || mode === 'gesture') await startVision();
+      else if (mode === 'whistle') await startWhistle();
+      else await startMotion();
+    } catch (error) {
+      metric.textContent = '启动失败\n' + String(error && error.message || error);
+      setStatus('请确认已允许权限，然后重新点击开始', true);
+      await stopAll();
+    }
+  }
+
+  document.querySelectorAll('.mode').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      await stopAll();
+      mode = button.dataset.mode;
+      document.querySelectorAll('.mode').forEach(function (item) { item.classList.toggle('active', item === button); });
+      placeholder.textContent = modeCopy[mode];
+      metric.textContent = '等待开始';
+      setStatus('尚未申请当前测试权限');
+    });
+  });
+  document.getElementById('start').addEventListener('click', startCurrent);
+  document.getElementById('stop').addEventListener('click', async function () { await stopAll(); metric.textContent = '已停止'; setStatus('资源与权限占用已释放'); });
+  window.addEventListener('beforeunload', stopAll);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+.page { min-height: 100vh; background: #f7fbf9; color: #09261d; }
+.hero { position: relative; overflow: hidden; min-height: min(680px, 78vh); padding: clamp(32px, 6vw, 88px) max(24px, calc((100vw - 1180px) / 2)); display: flex; flex-direction: column; justify-content: flex-end; background: radial-gradient(circle at 82% 20%, rgba(97, 233, 190, .7), transparent 31%), radial-gradient(circle at 68% 80%, rgba(242, 215, 101, .42), transparent 24%), linear-gradient(135deg, #e2fff4, #fbfffd 55%, #d6f9e9); }
+.heroGlow { position: absolute; width: min(48vw, 620px); aspect-ratio: 1; border-radius: 50%; right: -8%; top: 4%; background: repeating-radial-gradient(circle at 50% 50%, rgba(7, 190, 137, .16) 0 2px, transparent 3px 28px); transform: rotate(-16deg); opacity: .7; }
+.brand, .eyebrow, .hero h1, .intro, .createLink { position: relative; }
+.brand { font-size: 18px; font-weight: 900; letter-spacing: .16em; color: #00a878; }
+.eyebrow { margin: auto 0 10px; color: #087557; font-size: 14px; font-weight: 800; letter-spacing: .14em; }
+.hero h1 { margin: 0; max-width: 720px; font-size: clamp(54px, 9vw, 126px); line-height: .92; letter-spacing: -.08em; }
+.intro { max-width: 430px; margin: 24px 0 28px; color: #41675b; font-size: 17px; line-height: 1.7; }
+.createLink { display: inline-flex; align-items: center; gap: 12px; width: fit-content; padding: 13px 18px; border-radius: 999px; background: #003d2d; color: white; font-weight: 800; text-decoration: none; transition: transform .2s ease, background .2s ease; }
+.createLink:hover { background: #006b4e; transform: translateY(-2px); }
+.gallery, .previewSection { max-width: 1180px; margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+.gallery { padding-top: 36px; padding-bottom: 32px; }
+.workRow { display: grid; grid-template-columns: 72px minmax(0, 1fr) 150px; width: 100%; padding: 22px 0; border: 0; border-bottom: 1px solid #dbece6; background: transparent; color: inherit; text-align: left; cursor: pointer; transition: padding .24s ease, background .24s ease; }
+.workRow:hover, .workRowActive { padding-left: 14px; padding-right: 14px; background: #eafff5; }
+.workIndex { color: #00a878; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; font-weight: 800; }
+.workMain { display: grid; gap: 7px; }
+.workMain strong { font-size: clamp(22px, 3vw, 36px); letter-spacing: -.05em; }
+.workMain small { max-width: 620px; color: #58766c; font-size: 14px; line-height: 1.55; }
+.workMeta { align-self: center; color: #6b8179; font-size: 12px; line-height: 1.65; text-align: right; }
+.previewSection { padding-bottom: 72px; }
+.previewHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 28px 0 16px; }
+.previewHeader p { margin: 0 0 6px; color: #00a878; font-size: 13px; font-weight: 800; letter-spacing: .12em; }
+.previewHeader h2 { margin: 0; font-size: clamp(32px, 4vw, 54px); letter-spacing: -.06em; }
+.previewHeader > span { color: #5d756d; font-size: 13px; }
+.previewFrame { overflow: hidden; border: 1px solid #cfe6dd; border-radius: 28px; background: white; box-shadow: 0 24px 56px rgba(0, 66, 48, .13); }
+.previewFrame iframe { display: block; width: 100%; height: min(720px, 76vh); border: 0; background: white; }
+.state, .error { padding: 44px 0; color: #58766c; text-align: center; }
+.error { color: #a24e43; }
+@media (max-width: 620px) { .hero { min-height: 600px; padding: 26px 22px 44px; } .hero h1 { font-size: 60px; } .gallery, .previewSection { padding-left: 18px; padding-right: 18px; } .workRow { grid-template-columns: 42px minmax(0, 1fr); } .workMeta { grid-column: 2; text-align: left; margin-top: 8px; } .previewHeader { align-items: flex-start; flex-direction: column; } .previewFrame { border-radius: 20px; } .previewFrame iframe { height: 70vh; } }

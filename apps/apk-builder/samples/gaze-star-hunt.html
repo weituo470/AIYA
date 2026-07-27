@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <title>目光寻星</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background: #061612;
+      color: #f4fff9;
+      --mint: #42f5b3;
+      --mint-soft: rgba(66, 245, 179, .18);
+      --gold: #ffd36a;
+      --panel: rgba(7, 32, 26, .76);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      min-height: 100dvh;
+      background:
+        radial-gradient(circle at 72% 8%, rgba(66,245,179,.13), transparent 28%),
+        radial-gradient(circle at 8% 78%, rgba(45,128,255,.14), transparent 34%),
+        #061612;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+    .app {
+      width: min(100%, 760px);
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+    .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+    .brand { display: flex; align-items: baseline; gap: 9px; }
+    h1 { margin: 0; font-size: clamp(22px, 6vw, 30px); letter-spacing: -.04em; }
+    .eyebrow { color: var(--mint); font-size: 11px; font-weight: 900; letter-spacing: .16em; }
+    .score {
+      min-width: 72px;
+      padding: 8px 12px;
+      border: 1px solid rgba(116,255,205,.2);
+      border-radius: 999px;
+      background: rgba(6,28,23,.7);
+      color: #bdfce4;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .observatory {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(129,255,213,.16);
+      border-radius: clamp(24px, 6vw, 34px);
+      background:
+        radial-gradient(circle at 16% 18%, rgba(255,255,255,.8) 0 1px, transparent 2px),
+        radial-gradient(circle at 74% 24%, rgba(255,211,106,.7) 0 1px, transparent 2px),
+        radial-gradient(circle at 44% 74%, rgba(128,196,255,.6) 0 1px, transparent 2px),
+        linear-gradient(160deg, #0a211c 0%, #071712 48%, #07131b 100%);
+      background-size: 94px 94px, 138px 138px, 176px 176px, auto;
+      box-shadow: 0 24px 70px rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.04);
+    }
+    .observatory::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 48%, transparent 0 35%, rgba(0,0,0,.31) 100%);
+    }
+
+    .statusline {
+      position: absolute;
+      z-index: 8;
+      top: 14px;
+      left: 14px;
+      right: 90px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #b6cfc7;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #78948b; box-shadow: 0 0 0 5px rgba(120,148,139,.08); }
+    .status-dot.live { background: var(--mint); box-shadow: 0 0 0 5px var(--mint-soft), 0 0 20px rgba(66,245,179,.5); }
+
+    .camera-peek {
+      position: absolute;
+      z-index: 7;
+      top: 12px;
+      right: 12px;
+      width: 64px;
+      height: 82px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 18px;
+      background: #0d2922;
+      box-shadow: 0 10px 30px rgba(0,0,0,.28);
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity .3s ease, transform .3s ease;
+    }
+    .camera-peek.visible { opacity: 1; transform: translateY(0); }
+    video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    .camera-label { position: absolute; inset: auto 0 0; padding: 4px; background: rgba(0,0,0,.58); text-align: center; font-size: 9px; font-weight: 800; }
+
+    .hero-copy {
+      position: absolute;
+      z-index: 4;
+      top: 18%;
+      left: 8%;
+      right: 8%;
+      text-align: center;
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .hero-copy.hidden { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    .hero-copy strong { display: block; font-size: clamp(32px, 10vw, 54px); line-height: 1.05; letter-spacing: -.055em; }
+    .hero-copy p { max-width: 340px; margin: 14px auto 0; color: #a9c2ba; font-size: 14px; line-height: 1.65; }
+
+    .primary {
+      position: absolute;
+      z-index: 9;
+      left: 50%;
+      bottom: 12%;
+      width: min(74%, 320px);
+      min-height: 58px;
+      transform: translateX(-50%);
+      border: 0;
+      border-radius: 999px;
+      background: var(--mint);
+      color: #042219;
+      font-size: 17px;
+      font-weight: 950;
+      box-shadow: 0 18px 45px rgba(45,225,160,.3), inset 0 -3px rgba(0,95,67,.16);
+    }
+    .primary:active { transform: translateX(-50%) translateY(2px) scale(.99); }
+    .primary[hidden] { display: none; }
+
+    .target {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      top: 50%;
+      width: 62px;
+      height: 62px;
+      transform: translate(-50%, -50%) scale(.82);
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+      transition: left .52s cubic-bezier(.2,.8,.2,1), top .52s cubic-bezier(.2,.8,.2,1), opacity .2s ease, transform .2s ease;
+    }
+    .target.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    .target::before {
+      content: "★";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--gold);
+      font-size: 36px;
+      filter: drop-shadow(0 0 8px rgba(255,211,106,.95));
+      animation: star-breathe 1.2s ease-in-out infinite alternate;
+    }
+    .target::after {
+      content: "";
+      position: absolute;
+      inset: -9px;
+      border: 2px solid rgba(255,226,151,.28);
+      border-radius: 50%;
+      background: conic-gradient(var(--gold) var(--dwell, 0deg), transparent 0);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+      mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+    }
+    @keyframes star-breathe { to { transform: scale(1.12) rotate(5deg); filter: drop-shadow(0 0 18px rgba(255,211,106,1)); } }
+
+    .cursor {
+      position: absolute;
+      z-index: 6;
+      left: 50%;
+      top: 50%;
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--mint);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      pointer-events: none;
+      box-shadow: 0 0 0 5px rgba(66,245,179,.09), 0 0 24px rgba(66,245,179,.55);
+      transition: opacity .2s ease;
+    }
+    .cursor.visible { opacity: 1; }
+    .cursor::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--mint); }
+
+    .calibration-copy {
+      position: absolute;
+      z-index: 8;
+      left: 50%;
+      bottom: 8%;
+      width: min(84%, 380px);
+      transform: translateX(-50%);
+      padding: 12px 16px;
+      border: 1px solid rgba(134,255,213,.18);
+      border-radius: 16px;
+      background: rgba(4,23,18,.76);
+      color: #d5eee6;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 750;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transition: opacity .2s ease;
+    }
+    .calibration-copy.visible { opacity: 1; }
+
+    .burst { position: absolute; z-index: 7; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
+    .burst i {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 10px currentColor;
+      animation: burst .7s cubic-bezier(.1,.8,.2,1) forwards;
+      transform: rotate(var(--angle)) translateX(0);
+    }
+    @keyframes burst { to { opacity: 0; transform: rotate(var(--angle)) translateX(72px) scale(.3); } }
+
+    .finish {
+      position: absolute;
+      z-index: 10;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 28px;
+      background: rgba(4,20,16,.72);
+      backdrop-filter: blur(12px);
+      text-align: center;
+    }
+    .finish.visible { display: grid; }
+    .finish-card { max-width: 360px; }
+    .finish-mark { font-size: 74px; filter: drop-shadow(0 0 30px rgba(255,211,106,.45)); }
+    .finish h2 { margin: 4px 0 10px; font-size: 34px; letter-spacing: -.04em; }
+    .finish p { margin: 0 0 22px; color: #b4ccc4; line-height: 1.65; }
+    .again { min-height: 52px; padding: 0 25px; border: 1px solid rgba(107,255,203,.32); border-radius: 999px; background: rgba(66,245,179,.12); color: #c9ffe9; font-size: 16px; font-weight: 900; }
+
+    .footnote { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #79958c; font-size: 10px; line-height: 1.4; }
+    .footnote strong { color: #a7c8bd; }
+    .stop { padding: 8px 12px; border: 0; border-radius: 999px; background: #112c25; color: #9fbbb2; font-size: 11px; font-weight: 850; }
+    .stop[hidden] { display: none; }
+    .error { color: #ffb5a7 !important; }
+
+    @media (max-height: 620px) {
+      .app { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .topbar { min-height: 36px; }
+      .hero-copy { top: 14%; }
+      .hero-copy strong { font-size: 31px; }
+      .primary { bottom: 9%; min-height: 50px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div class="brand"><span class="eyebrow">AIYA VISION</span><h1>目光寻星</h1></div>
+    <div id="score" class="score">0 / 5</div>
+  </header>
+
+  <section id="stage" class="observatory" aria-label="目光互动区域">
+    <div class="statusline"><span id="statusDot" class="status-dot"></span><span id="status">等待开启前置摄像头</span></div>
+    <div id="cameraPeek" class="camera-peek"><video id="camera" autoplay muted playsinline></video><span class="camera-label">仅本机</span></div>
+
+    <div id="hero" class="hero-copy">
+      <strong>不用手，<br>用目光点亮星星</strong>
+      <p>开启摄像头后，先看向 5 个校准点。目光停在星星上约 1 秒，即可捕获。</p>
+    </div>
+    <button id="start" class="primary" type="button">开启前置摄像头</button>
+
+    <div id="target" class="target" aria-hidden="true"></div>
+    <div id="cursor" class="cursor" aria-hidden="true"></div>
+    <div id="calibrationCopy" class="calibration-copy">请自然坐直，看向发光点</div>
+
+    <div id="finish" class="finish">
+      <div class="finish-card">
+        <div class="finish-mark">✦</div>
+        <h2>目光已被看见</h2>
+        <p>你只用眼睛捕获了 5 颗星。摄像头画面全程只在手机本地内存中处理。</p>
+        <button id="again" class="again" type="button">再寻一次</button>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footnote">
+    <span><strong>隐私：</strong>不拍照、不上传、不保存画面</span>
+    <button id="stop" class="stop" type="button" hidden>关闭摄像头</button>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* 画面、校准值和识别结果只保存在当前页面内存中。 */
+  var camera = document.getElementById('camera');
+  var cameraPeek = document.getElementById('cameraPeek');
+  var stage = document.getElementById('stage');
+  var hero = document.getElementById('hero');
+  var startButton = document.getElementById('start');
+  var stopButton = document.getElementById('stop');
+  var target = document.getElementById('target');
+  var cursor = document.getElementById('cursor');
+  var status = document.getElementById('status');
+  var statusDot = document.getElementById('statusDot');
+  var calibrationCopy = document.getElementById('calibrationCopy');
+  var scoreLabel = document.getElementById('score');
+  var finish = document.getElementById('finish');
+  var stream = null;
+  var visionSession = null;
+  var active = false;
+  var phase = 'idle';
+  var sourceMode = 'gaze';
+  var calibrationIndex = -1;
+  var calibrationSamples = [];
+  var calibration = {};
+  var mapperX = null;
+  var mapperY = null;
+  var cursorX = .5;
+  var cursorY = .5;
+  var targetX = .68;
+  var targetY = .42;
+  var dwellMs = 0;
+  var lastResultAt = 0;
+  var score = 0;
+  var total = 5;
+  var calibrationPlan = [
+    { id: 'center', label: '中央', x: .5, y: .48 },
+    { id: 'left', label: '左边', x: .18, y: .5 },
+    { id: 'right', label: '右边', x: .82, y: .5 },
+    { id: 'up', label: '上方', x: .5, y: .2 },
+    { id: 'down', label: '下方', x: .5, y: .78 }
+  ];
+
+  function setStatus(text, live, isError) {
+    status.textContent = text;
+    status.className = isError ? 'error' : '';
+    statusDot.className = live ? 'status-dot live' : 'status-dot';
+  }
+
+  function speak(text) {
+    try {
+      if (window.AiyaAppInteraction && typeof window.AiyaAppInteraction.speak === 'function') {
+        window.AiyaAppInteraction.speak(text);
+        return;
+      }
+      if ('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window) {
+        window.speechSynthesis.cancel();
+        var utterance = new window.SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-CN';
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (error) {}
+  }
+
+  function vibrate(pattern) {
+    try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (error) {}
+  }
+
+  function median(values) {
+    if (!values.length) return 0;
+    var ordered = values.slice().sort(function (a, b) { return a - b; });
+    var middle = Math.floor(ordered.length / 2);
+    return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
+  }
+
+  function fitAxis(points) {
+    var meanRaw = points.reduce(function (sum, item) { return sum + item.raw; }, 0) / points.length;
+    var meanScreen = points.reduce(function (sum, item) { return sum + item.screen; }, 0) / points.length;
+    var numerator = 0;
+    var denominator = 0;
+    points.forEach(function (item) {
+      numerator += (item.raw - meanRaw) * (item.screen - meanScreen);
+      denominator += (item.raw - meanRaw) * (item.raw - meanRaw);
+    });
+    if (denominator < .00001) return null;
+    var slope = numerator / denominator;
+    return { slope: slope, intercept: meanScreen - slope * meanRaw };
+  }
+
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+  function rawPoint(result) {
+    if (!result || !result.ok || !result.faceDetected) return null;
+    if (Number.isFinite(Number(result.gazeX)) && Number.isFinite(Number(result.gazeY))) {
+      sourceMode = 'gaze';
+      return {
+        x: Number(result.gazeX),
+        y: Number(result.gazeY),
+        confidence: Number(result.gazeConfidence == null ? 1 : result.gazeConfidence)
+      };
+    }
+    if (result.headPose && Number.isFinite(Number(result.headPose.yaw)) && Number.isFinite(Number(result.headPose.pitch))) {
+      sourceMode = 'head';
+      return { x: Number(result.headPose.yaw), y: Number(result.headPose.pitch), confidence: .55 };
+    }
+    return null;
+  }
+
+  function placeTarget(x, y) {
+    targetX = x;
+    targetY = y;
+    target.style.left = (x * 100).toFixed(2) + '%';
+    target.style.top = (y * 100).toFixed(2) + '%';
+    target.style.setProperty('--dwell', '0deg');
+  }
+
+  function beginCalibration() {
+    phase = 'calibrating';
+    calibration = {};
+    calibrationIndex = -1;
+    calibrationSamples = [];
+    hero.classList.add('hidden');
+    startButton.hidden = true;
+    target.classList.add('visible');
+    calibrationCopy.classList.add('visible');
+    nextCalibrationPoint();
+  }
+
+  function nextCalibrationPoint() {
+    calibrationIndex += 1;
+    calibrationSamples = [];
+    if (calibrationIndex >= calibrationPlan.length) {
+      completeCalibration();
+      return;
+    }
+    var point = calibrationPlan[calibrationIndex];
+    placeTarget(point.x, point.y);
+    calibrationCopy.textContent = '校准 ' + (calibrationIndex + 1) + ' / ' + calibrationPlan.length + ' · 请看' + point.label + '光点';
+    setStatus('保持头部自然，只移动目光', true, false);
+  }
+
+  function collectCalibration(point) {
+    if (point.confidence < .3) {
+      setStatus('请睁眼并把脸完整放入画面', true, false);
+      return;
+    }
+    calibrationSamples.push(point);
+    var progress = Math.min(1, calibrationSamples.length / 7);
+    target.style.setProperty('--dwell', Math.round(progress * 360) + 'deg');
+    if (calibrationSamples.length < 7) return;
+    var plan = calibrationPlan[calibrationIndex];
+    calibration[plan.id] = {
+      x: median(calibrationSamples.map(function (item) { return item.x; })),
+      y: median(calibrationSamples.map(function (item) { return item.y; }))
+    };
+    vibrate(18);
+    nextCalibrationPoint();
+  }
+
+  function completeCalibration() {
+    mapperX = fitAxis([
+      { raw: calibration.left.x, screen: .15 },
+      { raw: calibration.center.x, screen: .5 },
+      { raw: calibration.right.x, screen: .85 }
+    ]);
+    mapperY = fitAxis([
+      { raw: calibration.up.y, screen: .16 },
+      { raw: calibration.center.y, screen: .5 },
+      { raw: calibration.down.y, screen: .84 }
+    ]);
+    if (!mapperX || !mapperY) {
+      setStatus('校准差异太小，请重新校准', false, true);
+      calibrationCopy.textContent = '请保持手机稳定，并用眼睛看向每个光点';
+      setTimeout(beginCalibration, 1200);
+      return;
+    }
+    calibrationCopy.classList.remove('visible');
+    target.classList.remove('visible');
+    cursor.classList.add('visible');
+    phase = 'playing';
+    score = 0;
+    scoreLabel.textContent = '0 / ' + total;
+    dwellMs = 0;
+    lastResultAt = 0;
+    setStatus(sourceMode === 'gaze' ? '目光追踪中' : '头部方向近似模式', true, false);
+    speak(sourceMode === 'gaze' ? '校准完成，请用目光寻找星星。' : '当前使用头部方向近似模式，请轻微转头寻找星星。');
+    setTimeout(function () {
+      nextStar();
+      target.classList.add('visible');
+    }, 320);
+  }
+
+  function mapPoint(point) {
+    return {
+      x: clamp(mapperX.slope * point.x + mapperX.intercept, .04, .96),
+      y: clamp(mapperY.slope * point.y + mapperY.intercept, .05, .95)
+    };
+  }
+
+  function nextStar() {
+    var x = .16 + Math.random() * .68;
+    var y = .2 + Math.random() * .62;
+    if (Math.abs(x - targetX) < .2 && Math.abs(y - targetY) < .2) x = x < .5 ? .76 : .24;
+    placeTarget(x, y);
+  }
+
+  function renderCursor(point) {
+    var mapped = mapPoint(point);
+    cursorX += (mapped.x - cursorX) * .38;
+    cursorY += (mapped.y - cursorY) * .38;
+    cursor.style.left = (cursorX * 100).toFixed(2) + '%';
+    cursor.style.top = (cursorY * 100).toFixed(2) + '%';
+  }
+
+  function createBurst() {
+    var burst = document.createElement('span');
+    burst.className = 'burst';
+    burst.style.left = (targetX * 100) + '%';
+    burst.style.top = (targetY * 100) + '%';
+    for (var index = 0; index < 12; index += 1) {
+      var spark = document.createElement('i');
+      spark.style.setProperty('--angle', (index * 30) + 'deg');
+      if (index % 3 === 1) spark.style.background = '#42f5b3';
+      if (index % 3 === 2) spark.style.background = '#72b7ff';
+      burst.appendChild(spark);
+    }
+    stage.appendChild(burst);
+    setTimeout(function () { burst.remove(); }, 760);
+  }
+
+  function captureStar() {
+    score += 1;
+    scoreLabel.textContent = score + ' / ' + total;
+    createBurst();
+    vibrate([24, 32, 42]);
+    dwellMs = 0;
+    target.style.setProperty('--dwell', '0deg');
+    if (score >= total) {
+      phase = 'finished';
+      target.classList.remove('visible');
+      cursor.classList.remove('visible');
+      finish.classList.add('visible');
+      setStatus('挑战完成', true, false);
+      speak('太棒了，你只用目光捕获了五颗星。');
+      return;
+    }
+    setTimeout(nextStar, 260);
+  }
+
+  function playFrame(point) {
+    renderCursor(point);
+    var now = performance.now();
+    var delta = lastResultAt ? Math.min(320, now - lastResultAt) : 0;
+    lastResultAt = now;
+    var dx = cursorX - targetX;
+    var dy = cursorY - targetY;
+    var distance = Math.sqrt(dx * dx + dy * dy);
+    if (point.confidence >= .28 && distance < .105) dwellMs += delta;
+    else dwellMs = Math.max(0, dwellMs - delta * 1.4);
+    var progress = clamp(dwellMs / 850, 0, 1);
+    target.style.setProperty('--dwell', Math.round(progress * 360) + 'deg');
+    if (progress >= 1) captureStar();
+  }
+
+  function onVisionResult(result) {
+    if (!active) return;
+    var point = rawPoint(result);
+    if (!point) {
+      setStatus('没有检测到完整人脸', true, false);
+      return;
+    }
+    if (phase === 'calibrating') collectCalibration(point);
+    else if (phase === 'playing') playFrame(point);
+  }
+
+  async function stopCamera(showMessage) {
+    active = false;
+    phase = 'idle';
+    if (visionSession) { try { visionSession.stop(); } catch (error) {} visionSession = null; }
+    if (stream) {
+      stream.getVideoTracks().forEach(function (track) { track.stop(); });
+      stream = null;
+    }
+    camera.srcObject = null;
+    cameraPeek.classList.remove('visible');
+    target.classList.remove('visible');
+    cursor.classList.remove('visible');
+    calibrationCopy.classList.remove('visible');
+    finish.classList.remove('visible');
+    stopButton.hidden = true;
+    startButton.hidden = false;
+    hero.classList.remove('hidden');
+    if (showMessage) setStatus('摄像头已关闭', false, false);
+  }
+
+  async function startCamera() {
+    startButton.disabled = true;
+    setStatus('正在申请前置摄像头权限…', false, false);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('当前环境不支持摄像头');
+      if (!window.AiyaBodyVisionRuntime) throw new Error('请在最新版 AIYA 中打开此作品');
+      var capabilities = window.AiyaBodyVisionRuntime.capabilities();
+      if (!capabilities || !capabilities.ok || !capabilities.face) throw new Error('本地人脸视觉模型不可用');
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false
+      });
+      camera.srcObject = stream;
+      await camera.play();
+      active = true;
+      cameraPeek.classList.add('visible');
+      stopButton.hidden = false;
+      visionSession = window.AiyaBodyVisionRuntime.start({
+        video: camera,
+        mode: 'face',
+        fps: 5,
+        maxEdge: 320,
+        onResult: onVisionResult,
+        onError: function (error) { setStatus('识别失败：' + String(error && error.message || error), false, true); }
+      });
+      speak('请依次看向五个发光点，完成目光校准。');
+      beginCalibration();
+    } catch (error) {
+      await stopCamera(false);
+      setStatus(String(error && error.message || error) + '，请允许权限后重试', false, true);
+      startButton.textContent = '重新开启摄像头';
+    } finally {
+      startButton.disabled = false;
+    }
+  }
+
+  startButton.addEventListener('click', startCamera);
+  stopButton.addEventListener('click', function () { stopCamera(true); });
+  document.getElementById('again').addEventListener('click', function () {
+    finish.classList.remove('visible');
+    beginCalibration();
+  });
+  window.addEventListener('pagehide', function () { stopCamera(false); });
+  window.addEventListener('beforeunload', function () { stopCamera(false); });
+})();
+</script>
+</body>
+</html>

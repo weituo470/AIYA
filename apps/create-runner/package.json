@@ -1,0 +1,18 @@
+{
+  "name": "@aiya/create-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env ./src/index.js",
+    "start": "node --env-file=.env ./src/index.js",
+    "build": "node ../../scripts/check-js-syntax.mjs src",
+    "lint": "node ../../scripts/check-js-syntax.mjs src",
+    "typecheck": "node ../../scripts/check-js-syntax.mjs src",
+    "smoke": "node --env-file=.env ./src/smoke.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0",
+    "playwright": "^1.60.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+    "name":  "@aiya/apk-builder",
+    "version":  "0.1.0",
+    "private":  true,
+    "type":  "module",
+    "scripts":  {
+                    "build":  "node ../../scripts/check-js-syntax.mjs src",
+                    "lint":  "node ../../scripts/check-js-syntax.mjs src",
+                    "typecheck":  "node ../../scripts/check-js-syntax.mjs src",
+                    "smoke":  "node ./src/build-generated-apk.mjs --html ./samples/counter-game.html --title \"AIYA Counter Game\" --package cc.shenliu.aiya.generated.countergame --out ./dist/aiya-counter-game-debug.apk",
+                    "test:body-runtime": "node ./scripts/test-body-runtime.mjs",
+                    "test:showcase": "node ./scripts/test-showcase-samples.mjs"
+                }
+}

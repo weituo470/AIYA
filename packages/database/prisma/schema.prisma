@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TheatreStudent {
+  id                 String   @id @default(cuid())
+  externalId         String   @unique @default(cuid())
+  nickname           String
+  normalizedNickname String   @unique
+  profile            Json     @default("{}")
+  source             String   @default("create-theatre")
+  lastSeenAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  voiceprint TheatreVoiceprint?
+  sessions   TheatreSession[]
+
+  @@index([updatedAt])
+  @@index([lastSeenAt])
+  @@map("theatre_students")
+}
+
+model TheatreVoiceprint {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  model       String   @default("aiya-browser-pcm-v1")
+  embedding   Json
+  sampleCount Int      @default(1)
+  lastScore   Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student TheatreStudent @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+  @@map("theatre_voiceprints")
+}
+
+model TheatreSession {
+  id           String   @id @default(cuid())
+  externalId   String   @unique @default(cuid())
+  studentId    String
+  deviceId     String
+  status       String   @default("active")
+  chatMessages Json     @default("[]")
+  currentApp   Json?
+  metadata     Json     @default("{}")
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student TheatreStudent @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, deviceId])
+  @@index([studentId, updatedAt])
+  @@index([deviceId, updatedAt])
+  @@map("theatre_sessions")
+}
+
+model TheatreTask {
+  id            String    @id @default(cuid())
+  diagnosticId  String    @unique
+  clientTaskId  String?
+  interactionId String?
+  userKey       String
+  userName      String
+  studentId     String?
+  deviceId      String?
+  sessionId     String?
+  source        String    @default("unknown")
+  appId         String?
+  appVersion    String?
+  status        String    @default("started")
+  stage         String    @default("received")
+  idea          String    @default("")
+  request       Json      @default("{}")
+  currentApp    Json?
+  result        Json?
+  error         Json?
+  attempts      Json      @default("[]")
+  modelMode     String?
+  model         String?
+  provider      String?
+  apiType       String?
+  httpStatus    Int?
+  durationMs    Int?
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([startedAt])
+  @@index([status, startedAt])
+  @@index([userKey, startedAt])
+  @@index([studentId, startedAt])
+  @@index([deviceId, startedAt])
+  @@index([interactionId])
+  @@index([clientTaskId])
+  @@map("theatre_tasks")
+}

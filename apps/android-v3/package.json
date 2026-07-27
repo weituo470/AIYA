@@ -1,0 +1,10 @@
+{
+  "name": "@aiya/android-v3",
+  "version": "0.6.60",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/run-gradle.mjs :app:assembleDebug",
+    "typecheck": "node scripts/run-gradle.mjs :app:compileDebugKotlin",
+    "clean": "node scripts/run-gradle.mjs clean"
+  }
+}

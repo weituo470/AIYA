@@ -1,0 +1,224 @@
+<script id="aiya-v3-body-runtime">
+(function () {
+  if (window.__AIYA_V3_BODY_RUNTIME_INSTALLED__) return;
+  window.__AIYA_V3_BODY_RUNTIME_INSTALLED__ = true;
+
+  function parseJson(value) {
+    if (value && typeof value === 'object') return value;
+    try { return JSON.parse(String(value || '')); }
+    catch (error) { return { ok: false, error: 'invalid_native_result', message: String(error && error.message || error) }; }
+  }
+  function visionBridge() {
+    var bridge = window.AiyaBodyVision || window.AiyaAppInteraction;
+    return bridge && typeof bridge.capabilities === 'function' ? bridge : null;
+  }
+  var frameCanvas = document.createElement('canvas');
+  var frameContext = frameCanvas.getContext('2d', { alpha: false, willReadFrequently: false });
+  function captureFrame(video, maxEdge, quality) {
+    if (!video || !video.videoWidth || !video.videoHeight) throw new Error('camera_not_ready');
+    var edge = Math.max(160, Math.min(384, Number(maxEdge) || 320));
+    var scale = Math.min(1, edge / Math.max(video.videoWidth, video.videoHeight));
+    frameCanvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    frameCanvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
+    return frameCanvas.toDataURL('image/jpeg', Math.max(0.45, Math.min(0.82, Number(quality) || 0.68)));
+  }
+  function analyze(method, input, options) {
+    var bridge = visionBridge();
+    if (!bridge || typeof bridge[method] !== 'function') return { ok: false, error: 'vision_unavailable', message: '当前容器不支持体感视觉识别' };
+    var frame = typeof input === 'string' ? input : captureFrame(input, options && options.maxEdge, options && options.quality);
+    return parseJson(bridge[method](frame));
+  }
+
+  window.AiyaBodyVisionRuntime = {
+    version: 2,
+    capabilities: function () {
+      var bridge = visionBridge();
+      return bridge ? parseJson(bridge.capabilities()) : { ok: false, face: false, gesture: false, error: 'vision_unavailable' };
+    },
+    captureFrame: captureFrame,
+    analyzeFace: function (input, options) { return analyze('analyzeFace', input, options || {}); },
+    analyzeGesture: function (input, options) { return analyze('analyzeGesture', input, options || {}); },
+    start: function (options) {
+      options = options || {};
+      var video = options.video;
+      var mode = options.mode === 'gesture' || options.mode === 'both' ? options.mode : 'face';
+      var fps = Math.max(1, Math.min(8, Number(options.fps) || 5));
+      var stopped = false;
+      var timer = 0;
+      function next(delay) { if (!stopped) timer = setTimeout(loop, Math.max(0, delay)); }
+      function loop() {
+        if (stopped) return;
+        var started = Date.now();
+        try {
+          var frame = captureFrame(video, options.maxEdge, options.quality);
+          var result = mode === 'face'
+            ? analyze('analyzeFace', frame, options)
+            : mode === 'gesture'
+              ? analyze('analyzeGesture', frame, options)
+              : { ok: true, face: analyze('analyzeFace', frame, options), gesture: analyze('analyzeGesture', frame, options) };
+          if (typeof options.onResult === 'function') options.onResult(result);
+        } catch (error) {
+          if (typeof options.onError === 'function') options.onError(error);
+        }
+        next(1000 / fps - (Date.now() - started));
+      }
+      next(0);
+      return { stop: function () { stopped = true; clearTimeout(timer); } };
+    }
+  };
+
+  function estimatePitch(buffer, sampleRate, options) {
+    options = options || {};
+    var minHz = Math.max(50, Number(options.minHz) || 80);
+    var maxHz = Math.min(sampleRate / 2, Number(options.maxHz) || 4000);
+    var rmsSum = 0;
+    for (var i = 0; i < buffer.length; i += 1) rmsSum += buffer[i] * buffer[i];
+    var rms = Math.sqrt(rmsSum / Math.max(1, buffer.length));
+    if (rms < (Number(options.minRms) || 0.008)) return { frequency: 0, clarity: 0, rms: rms, isWhistle: false };
+    var minLag = Math.max(2, Math.floor(sampleRate / maxHz));
+    var maxLag = Math.min(buffer.length - 2, Math.ceil(sampleRate / minHz));
+    var bestLag = 0;
+    var best = -1;
+    var previousScore = -1;
+    var bestPrevious = -1;
+    var bestNext = -1;
+    for (var lag = minLag; lag <= maxLag; lag += 1) {
+      var cross = 0, left = 0, right = 0;
+      var limit = buffer.length - lag;
+      for (var j = 0; j < limit; j += 1) {
+        var a = buffer[j], b = buffer[j + lag];
+        cross += a * b; left += a * a; right += b * b;
+      }
+      var score = cross / Math.sqrt(Math.max(1e-12, left * right));
+      if (score > best) { bestPrevious = lag > minLag ? previousScore : score; best = score; bestLag = lag; bestNext = -1; }
+      else if (lag === bestLag + 1) bestNext = score;
+      previousScore = score;
+    }
+    var refinedLag = bestLag;
+    if (bestLag > 0 && bestNext >= 0 && bestPrevious >= 0) {
+      var denom = 2 * (2 * best - bestPrevious - bestNext);
+      if (Math.abs(denom) > 1e-6) refinedLag += (bestNext - bestPrevious) / denom;
+    }
+    var frequency = refinedLag > 0 ? sampleRate / refinedLag : 0;
+    var whistleMinHz = Number(options.whistleMinHz) || 700;
+    var whistleMaxHz = Number(options.whistleMaxHz) || 4000;
+    var clarity = Math.max(0, Math.min(1, best));
+    return {
+      frequency: Math.round(frequency * 10) / 10,
+      clarity: Math.round(clarity * 1000) / 1000,
+      rms: Math.round(rms * 10000) / 10000,
+      isWhistle: frequency >= whistleMinHz && frequency <= whistleMaxHz && clarity >= (Number(options.whistleClarity) || 0.62)
+    };
+  }
+  window.AiyaBodyAudio = {
+    version: 1,
+    estimatePitch: estimatePitch,
+    createPitchTracker: async function (stream, options) {
+      options = options || {};
+      var AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) throw new Error('audio_context_unavailable');
+      var context = new AudioCtor();
+      if (context.state === 'suspended') await context.resume();
+      var source = context.createMediaStreamSource(stream);
+      var analyser = context.createAnalyser();
+      analyser.fftSize = Math.max(1024, Math.min(8192, Number(options.fftSize) || 4096));
+      analyser.smoothingTimeConstant = 0;
+      source.connect(analyser);
+      var buffer = new Float32Array(analyser.fftSize);
+      return {
+        sample: function () {
+          analyser.getFloatTimeDomainData(buffer);
+          return estimatePitch(buffer, context.sampleRate, options);
+        },
+        stop: async function () {
+          try { source.disconnect(); } catch (error) {}
+          try { analyser.disconnect(); } catch (error) {}
+          if (options.closeContext !== false) try { await context.close(); } catch (error) {}
+        },
+        sampleRate: context.sampleRate
+      };
+    }
+  };
+
+  var motionState = { alpha: 0, beta: 0, gamma: 0, tiltX: 0, tiltY: 0, turn: 0, acceleration: 0, shake: false, action: 'steady' };
+  var motionBase = { alpha: 0, beta: 0, gamma: 0 };
+  var motionListeners = [];
+  var motionStarted = false;
+  var motionFrame = 0;
+  function normalizedAngle(value) { while (value > 180) value -= 360; while (value < -180) value += 360; return value; }
+  function motionAction(state) {
+    if (state.shake) return 'shake';
+    if (state.tiltX < -18) return 'tilt-left';
+    if (state.tiltX > 18) return 'tilt-right';
+    if (state.tiltY < -18) return 'tilt-forward';
+    if (state.tiltY > 18) return 'tilt-back';
+    return 'steady';
+  }
+  function emitMotion() {
+    if (motionFrame) return;
+    motionFrame = requestAnimationFrame(function () {
+      motionFrame = 0;
+      motionState.action = motionAction(motionState);
+      var snapshot = Object.assign({}, motionState);
+      motionListeners.slice().forEach(function (listener) { try { listener(snapshot); } catch (error) {} });
+    });
+  }
+  function onOrientation(event) {
+    motionState.alpha = Number(event.alpha) || 0;
+    motionState.beta = Number(event.beta) || 0;
+    motionState.gamma = Number(event.gamma) || 0;
+    motionState.turn = normalizedAngle(motionState.alpha - motionBase.alpha);
+    motionState.tiltY = motionState.beta - motionBase.beta;
+    motionState.tiltX = motionState.gamma - motionBase.gamma;
+    emitMotion();
+  }
+  function onDeviceMotion(event) {
+    var a = event.acceleration || event.accelerationIncludingGravity || {};
+    var x = Number(a.x) || 0, y = Number(a.y) || 0, z = Number(a.z) || 0;
+    motionState.acceleration = Math.sqrt(x * x + y * y + z * z);
+    motionState.shake = motionState.acceleration >= 12;
+    motionState.rotationRate = event.rotationRate ? {
+      alpha: Number(event.rotationRate.alpha) || 0,
+      beta: Number(event.rotationRate.beta) || 0,
+      gamma: Number(event.rotationRate.gamma) || 0
+    } : null;
+    emitMotion();
+  }
+  window.AiyaBodyMotion = {
+    version: 1,
+    supported: 'DeviceOrientationEvent' in window || 'DeviceMotionEvent' in window,
+    start: async function (listener) {
+      var PermissionCtor = window.DeviceOrientationEvent;
+      if (PermissionCtor && typeof PermissionCtor.requestPermission === 'function') {
+        var permission = await PermissionCtor.requestPermission();
+        if (permission !== 'granted') throw new Error('motion_permission_denied');
+      }
+      if (typeof listener === 'function' && motionListeners.indexOf(listener) < 0) motionListeners.push(listener);
+      if (!motionStarted) {
+        motionStarted = true;
+        window.addEventListener('deviceorientation', onOrientation, true);
+        window.addEventListener('devicemotion', onDeviceMotion, true);
+      }
+      return Object.assign({}, motionState);
+    },
+    calibrate: function () {
+      motionBase = { alpha: motionState.alpha, beta: motionState.beta, gamma: motionState.gamma };
+      return Object.assign({}, motionBase);
+    },
+    current: function () { return Object.assign({}, motionState); },
+    removeListener: function (listener) {
+      motionListeners = motionListeners.filter(function (item) { return item !== listener; });
+    },
+    stop: function () {
+      motionListeners = [];
+      if (!motionStarted) return;
+      motionStarted = false;
+      window.removeEventListener('deviceorientation', onOrientation, true);
+      window.removeEventListener('devicemotion', onDeviceMotion, true);
+      if (motionFrame) cancelAnimationFrame(motionFrame);
+      motionFrame = 0;
+    }
+  };
+})();
+</script>

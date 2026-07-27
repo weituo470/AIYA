@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="aiya_update_cache" path="updates/" />
+    <cache-path name="aiya_generated_apk_cache" path="generated-apks/" />
+    <cache-path name="aiya_html_share_cache" path="shared-html/" />
+</paths>

@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <title>云端飞行</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      --ink: #f6fbff;
+      --muted: #b9c9d8;
+      --mint: #56f0be;
+      --navy: #071528;
+      --orange: #ffb35c;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      min-height: 100dvh;
+      background: #071528;
+      color: var(--ink);
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    .game { position: relative; width: 100%; height: 100dvh; overflow: hidden; isolation: isolate; }
+    .game::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(1,8,20,.28), transparent 22%, transparent 72%, rgba(1,8,20,.32));
+      z-index: 2;
+    }
+
+    .hud {
+      position: absolute;
+      z-index: 5;
+      top: max(14px, env(safe-area-inset-top));
+      left: 14px;
+      right: 14px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .hud.visible { opacity: 1; transform: translateY(0); }
+    .hud-item { display: flex; flex-direction: column; gap: 2px; }
+    .hud-item:last-child { align-items: flex-end; }
+    .hud-label { color: rgba(226,240,250,.65); font-size: 9px; font-weight: 900; letter-spacing: .14em; }
+    .hud-value { color: white; font-size: 21px; line-height: 1; font-weight: 950; letter-spacing: -.03em; text-shadow: 0 2px 12px rgba(0,0,0,.28); }
+    .timer {
+      min-width: 68px;
+      padding: 9px 13px;
+      border: 1px solid rgba(255,255,255,.17);
+      border-radius: 999px;
+      background: rgba(7,21,40,.45);
+      text-align: center;
+      font-size: 18px;
+      font-weight: 950;
+      backdrop-filter: blur(12px);
+    }
+
+    .mode {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: calc(100% - 28px);
+      padding: 9px 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      background: rgba(7,21,40,.56);
+      color: #d9e8f2;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      transition: opacity .25s ease;
+    }
+    .mode.visible { opacity: 1; }
+
+    .overlay {
+      position: absolute;
+      z-index: 7;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(24px, env(safe-area-inset-top)) 24px max(26px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(5,17,35,.08), rgba(5,17,35,.24));
+      transition: opacity .3s ease, transform .3s ease;
+    }
+    .overlay.hidden { opacity: 0; transform: scale(1.03); pointer-events: none; }
+    .panel { width: min(100%, 390px); text-align: center; }
+    .eyebrow { display: block; margin-bottom: 15px; color: var(--mint); font-size: 11px; font-weight: 950; letter-spacing: .22em; }
+    h1 { margin: 0; font-size: clamp(48px, 15vw, 72px); line-height: .94; letter-spacing: -.07em; text-shadow: 0 12px 45px rgba(0,0,0,.28); }
+    .lead { max-width: 310px; margin: 18px auto 22px; color: #d1dfeb; font-size: 14px; line-height: 1.65; }
+    .rules { display: flex; justify-content: center; gap: 16px; margin-bottom: 26px; color: #dbe8f2; font-size: 11px; font-weight: 800; }
+    .rule { display: flex; align-items: center; gap: 5px; }
+    .rule b { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: rgba(255,255,255,.12); font-size: 13px; }
+    .primary {
+      width: min(100%, 300px);
+      min-height: 58px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--mint);
+      color: #05261c;
+      font-size: 17px;
+      font-weight: 950;
+      box-shadow: 0 18px 48px rgba(45,225,163,.34), inset 0 -3px rgba(0,89,62,.14);
+    }
+    .primary:active { transform: translateY(2px) scale(.99); }
+    .microcopy { margin-top: 14px; color: rgba(222,236,246,.68); font-size: 10px; line-height: 1.5; }
+
+    .result { display: none; }
+    .result.visible { display: grid; }
+    .result .panel {
+      padding: 30px 22px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 30px;
+      background: rgba(7,21,40,.72);
+      box-shadow: 0 28px 90px rgba(0,0,0,.35);
+      backdrop-filter: blur(18px);
+    }
+    .result-mark { color: var(--orange); font-size: 54px; filter: drop-shadow(0 0 20px rgba(255,179,92,.45)); }
+    .result h2 { margin: 5px 0 8px; font-size: 30px; letter-spacing: -.04em; }
+    .result-score { margin: 0 0 22px; color: var(--mint); font-size: 58px; line-height: 1; font-weight: 950; }
+    .result p { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+    .flash { position: absolute; z-index: 4; inset: 0; background: rgba(255,90,82,.3); opacity: 0; pointer-events: none; }
+    .flash.hit { animation: hit .32s ease-out; }
+    @keyframes hit { 35% { opacity: 1; } to { opacity: 0; } }
+
+    @media (max-height: 640px) {
+      .lead { margin: 12px auto 15px; }
+      .rules { margin-bottom: 18px; }
+      h1 { font-size: 46px; }
+      .primary { min-height: 52px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+<main class="game" aria-label="云端飞行游戏">
+  <canvas id="sky"></canvas>
+  <div id="hud" class="hud">
+    <div class="hud-item"><span class="hud-label">得分</span><span id="score" class="hud-value">0</span></div>
+    <div id="timer" class="timer">60</div>
+    <div class="hud-item"><span class="hud-label">生命</span><span id="lives" class="hud-value">● ● ●</span></div>
+  </div>
+  <div id="mode" class="mode">左右倾斜手机控制 · 也可以按住画面拖动</div>
+  <div id="flash" class="flash"></div>
+
+  <section id="intro" class="overlay">
+    <div class="panel">
+      <span class="eyebrow">AIYA FLIGHT</span>
+      <h1>云端<br>飞行</h1>
+      <p class="lead">驾驶纸飞机穿过日落云海。收集星星、借助气流加速，并避开会震动的雷云。</p>
+      <div class="rules">
+        <span class="rule"><b>★</b> +10</span>
+        <span class="rule"><b>◎</b> 加速</span>
+        <span class="rule"><b>☁</b> 避开</span>
+      </div>
+      <button id="start" class="primary" type="button">起飞</button>
+      <p class="microcopy">60 秒挑战 · 每 15 秒提速 · 体感不可用时自动切换触摸控制</p>
+    </div>
+  </section>
+
+  <section id="result" class="overlay result">
+    <div class="panel">
+      <div class="result-mark">✦</div>
+      <h2 id="resultTitle">航程结束</h2>
+      <div id="resultScore" class="result-score">0</div>
+      <p id="resultCopy">再飞一次，试试更稳定地穿过气流。</p>
+      <button id="again" class="primary" type="button">再次起飞</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var canvas = document.getElementById('sky');
+  var ctx = canvas.getContext('2d');
+  var intro = document.getElementById('intro');
+  var result = document.getElementById('result');
+  var hud = document.getElementById('hud');
+  var modeLabel = document.getElementById('mode');
+  var scoreLabel = document.getElementById('score');
+  var timerLabel = document.getElementById('timer');
+  var livesLabel = document.getElementById('lives');
+  var resultScore = document.getElementById('resultScore');
+  var resultTitle = document.getElementById('resultTitle');
+  var resultCopy = document.getElementById('resultCopy');
+  var flash = document.getElementById('flash');
+  var width = 390;
+  var height = 844;
+  var pixelRatio = 1;
+  var state = 'intro';
+  var score = 0;
+  var lives = 3;
+  var elapsed = 0;
+  var timeLeft = 60;
+  var lastTime = 0;
+  var spawnClock = 0;
+  var boostTime = 0;
+  var invulnerable = 0;
+  var tiltX = 0;
+  var motionReady = false;
+  var touchActive = false;
+  var touchTargetX = width * .5;
+  var entities = [];
+  var particles = [];
+  var audioContext = null;
+  var motionListener = null;
+  var plane = { x: width * .5, y: height * .74, targetX: width * .5, angle: 0 };
+  var distantClouds = Array.from({ length: 14 }, function (_, index) {
+    return { x: (index * 83) % 420, y: (index * 137) % 900, size: 28 + (index % 5) * 12, speed: 8 + (index % 4) * 4 };
+  });
+
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+  function random(min, max) { return min + Math.random() * (max - min); }
+
+  function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    plane.y = height * .74;
+    plane.x = clamp(plane.x, 34, width - 34);
+  }
+
+  function speak(text) {
+    try {
+      if (window.AiyaAppInteraction && typeof window.AiyaAppInteraction.speak === 'function') {
+        window.AiyaAppInteraction.speak(text);
+        return;
+      }
+      if ('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window) {
+        window.speechSynthesis.cancel();
+        var utterance = new window.SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-CN';
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (error) {}
+  }
+
+  function vibrate(pattern) {
+    try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (error) {}
+  }
+
+  function ensureAudio() {
+    if (audioContext) return audioContext;
+    var AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtor) audioContext = new AudioCtor();
+    return audioContext;
+  }
+
+  function tone(frequency, duration, type, volume) {
+    var audio = ensureAudio();
+    if (!audio) return;
+    try {
+      var oscillator = audio.createOscillator();
+      var gain = audio.createGain();
+      oscillator.type = type || 'sine';
+      oscillator.frequency.setValueAtTime(frequency, audio.currentTime);
+      gain.gain.setValueAtTime(volume || .05, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + duration);
+      oscillator.connect(gain);
+      gain.connect(audio.destination);
+      oscillator.start();
+      oscillator.stop(audio.currentTime + duration);
+    } catch (error) {}
+  }
+
+  async function startMotion() {
+    motionReady = false;
+    if (!window.AiyaBodyMotion || !window.AiyaBodyMotion.supported) {
+      modeLabel.textContent = '按住画面左右拖动纸飞机';
+      return;
+    }
+    try {
+      motionListener = function (reading) { tiltX = Number(reading.tiltX) || 0; };
+      await window.AiyaBodyMotion.start(motionListener);
+      window.AiyaBodyMotion.calibrate();
+      motionReady = true;
+      modeLabel.textContent = '左右倾斜手机控制 · 按住画面也能拖动';
+    } catch (error) {
+      modeLabel.textContent = '体感未开启 · 按住画面左右拖动';
+    }
+  }
+
+  function stopMotion() {
+    if (window.AiyaBodyMotion) {
+      try {
+        if (motionListener && typeof window.AiyaBodyMotion.removeListener === 'function') {
+          window.AiyaBodyMotion.removeListener(motionListener);
+        }
+        window.AiyaBodyMotion.stop();
+      } catch (error) {}
+    }
+    motionListener = null;
+    motionReady = false;
+  }
+
+  function resetGame() {
+    score = 0;
+    lives = 3;
+    elapsed = 0;
+    timeLeft = 60;
+    spawnClock = 0;
+    boostTime = 0;
+    invulnerable = 0;
+    entities = [];
+    particles = [];
+    plane.x = width * .5;
+    plane.targetX = plane.x;
+    plane.angle = 0;
+    updateHud();
+  }
+
+  async function begin() {
+    ensureAudio();
+    resetGame();
+    intro.classList.add('hidden');
+    result.classList.remove('visible');
+    hud.classList.add('visible');
+    modeLabel.classList.add('visible');
+    state = 'playing';
+    lastTime = performance.now();
+    await startMotion();
+    speak('准备起飞。倾斜手机或拖动画面，收集星星，避开雷云。');
+  }
+
+  function finish(reason) {
+    if (state !== 'playing') return;
+    state = 'over';
+    stopMotion();
+    hud.classList.remove('visible');
+    modeLabel.classList.remove('visible');
+    resultScore.textContent = String(score);
+    resultTitle.textContent = reason === 'lives' ? '迫降完成' : '航程完成';
+    resultCopy.textContent = score >= 140
+      ? '出色的航线！你已经掌握了气流节奏。'
+      : score >= 80
+        ? '不错的飞行，再试一次可以飞得更远。'
+        : '试着提前观察雷云，并多利用绿色气流。';
+    result.classList.add('visible');
+    tone(520, .28, 'sine', .06);
+    setTimeout(function () { tone(660, .34, 'sine', .05); }, 120);
+    speak('本次飞行得分' + score + '分。');
+  }
+
+  function updateHud() {
+    scoreLabel.textContent = String(score);
+    timerLabel.textContent = String(Math.max(0, Math.ceil(timeLeft)));
+    livesLabel.textContent = Array.from({ length: 3 }, function (_, index) { return index < lives ? '●' : '○'; }).join(' ');
+  }
+
+  function spawnEntity() {
+    var roll = Math.random();
+    var type = roll < .56 ? 'star' : roll < .74 ? 'boost' : 'storm';
+    entities.push({
+      type: type,
+      x: random(34, width - 34),
+      y: -45,
+      radius: type === 'storm' ? 30 : type === 'boost' ? 23 : 16,
+      spin: random(0, Math.PI * 2),
+      drift: random(-16, 16),
+    });
+  }
+
+  function burst(x, y, color, count) {
+    for (var index = 0; index < count; index += 1) {
+      var angle = Math.random() * Math.PI * 2;
+      var speed = random(35, 105);
+      particles.push({ x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: random(.35, .7), color: color });
+    }
+  }
+
+  function collide(entity) {
+    var dx = plane.x - entity.x;
+    var dy = plane.y - entity.y;
+    return Math.sqrt(dx * dx + dy * dy) < entity.radius + 17;
+  }
+
+  function collect(entity) {
+    if (entity.type === 'star') {
+      score += 10;
+      burst(entity.x, entity.y, '#ffd36a', 10);
+      tone(760, .12, 'sine', .045);
+      vibrate(16);
+    } else if (entity.type === 'boost') {
+      score += 5;
+      boostTime = 2;
+      burst(entity.x, entity.y, '#56f0be', 16);
+      tone(440, .12, 'triangle', .04);
+      setTimeout(function () { tone(680, .18, 'triangle', .04); }, 70);
+      vibrate([14, 24, 18]);
+    } else if (invulnerable <= 0) {
+      lives -= 1;
+      invulnerable = 1.15;
+      burst(entity.x, entity.y, '#ff756c', 18);
+      tone(135, .3, 'sawtooth', .055);
+      vibrate([60, 35, 70]);
+      flash.classList.remove('hit');
+      void flash.offsetWidth;
+      flash.classList.add('hit');
+      if (lives <= 0) finish('lives');
+    }
+    updateHud();
+  }
+
+  function update(dt) {
+    if (state !== 'playing') return;
+    elapsed += dt;
+    timeLeft = 60 - elapsed;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      updateHud();
+      finish('time');
+      return;
+    }
+    boostTime = Math.max(0, boostTime - dt);
+    invulnerable = Math.max(0, invulnerable - dt);
+    var difficulty = Math.floor(elapsed / 15);
+    var speed = (170 + difficulty * 34) * (boostTime > 0 ? 1.28 : 1);
+    spawnClock -= dt;
+    if (spawnClock <= 0) {
+      spawnEntity();
+      spawnClock = Math.max(.42, .82 - difficulty * .08) * random(.78, 1.18);
+    }
+
+    if (touchActive) plane.targetX = touchTargetX;
+    else if (motionReady) plane.targetX = width * .5 + clamp(tiltX / 24, -1, 1) * width * .38;
+    plane.targetX = clamp(plane.targetX, 28, width - 28);
+    var previousX = plane.x;
+    plane.x += (plane.targetX - plane.x) * Math.min(1, dt * 7.5);
+    plane.angle += (((plane.x - previousX) * .045) - plane.angle) * Math.min(1, dt * 9);
+
+    entities.forEach(function (entity) {
+      entity.y += speed * dt;
+      entity.x += entity.drift * dt;
+      entity.spin += dt * 2.2;
+      if (!entity.hit && collide(entity)) {
+        entity.hit = true;
+        collect(entity);
+      }
+    });
+    entities = entities.filter(function (entity) { return !entity.hit && entity.y < height + 70; });
+    particles.forEach(function (particle) {
+      particle.x += particle.vx * dt;
+      particle.y += particle.vy * dt;
+      particle.vy += 35 * dt;
+      particle.life -= dt;
+    });
+    particles = particles.filter(function (particle) { return particle.life > 0; });
+    distantClouds.forEach(function (cloud) {
+      cloud.y += (cloud.speed + speed * .08) * dt;
+      if (cloud.y > height + cloud.size) { cloud.y = -cloud.size; cloud.x = random(-40, width + 20); }
+    });
+    updateHud();
+  }
+
+  function drawBackground() {
+    var sky = ctx.createLinearGradient(0, 0, 0, height);
+    sky.addColorStop(0, '#07152d');
+    sky.addColorStop(.48, '#17446a');
+    sky.addColorStop(.76, '#f09a78');
+    sky.addColorStop(1, '#f9c99c');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, width, height);
+
+    var sunX = width * .74;
+    var sunY = height * .28;
+    var glow = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 100);
+    glow.addColorStop(0, 'rgba(255,230,161,.95)');
+    glow.addColorStop(.22, 'rgba(255,190,102,.5)');
+    glow.addColorStop(1, 'rgba(255,160,100,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 100, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffe4a7';
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    distantClouds.forEach(function (cloud) {
+      ctx.globalAlpha = .12 + cloud.size / 360;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(cloud.x, cloud.y, cloud.size, cloud.size * .34, 0, 0, Math.PI * 2);
+      ctx.ellipse(cloud.x + cloud.size * .45, cloud.y - cloud.size * .12, cloud.size * .55, cloud.size * .4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function drawStar(entity) {
+    ctx.save();
+    ctx.translate(entity.x, entity.y);
+    ctx.rotate(entity.spin);
+    ctx.shadowColor = '#ffd36a';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = '#ffe178';
+    ctx.beginPath();
+    for (var index = 0; index < 10; index += 1) {
+      var radius = index % 2 ? 6 : 14;
+      var angle = -Math.PI / 2 + index * Math.PI / 5;
+      var x = Math.cos(angle) * radius;
+      var y = Math.sin(angle) * radius;
+      if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBoost(entity) {
+    ctx.save();
+    ctx.translate(entity.x, entity.y);
+    ctx.rotate(entity.spin * .4);
+    ctx.strokeStyle = '#56f0be';
+    ctx.lineWidth = 5;
+    ctx.shadowColor = '#56f0be';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(0, 0, 17, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = .7;
+    ctx.beginPath();
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStorm(entity) {
+    ctx.save();
+    ctx.translate(entity.x, entity.y);
+    ctx.fillStyle = '#27344d';
+    ctx.shadowColor = 'rgba(9,16,30,.55)';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(-13, 1, 14, Math.PI, 0);
+    ctx.arc(0, -7, 19, Math.PI, 0);
+    ctx.arc(16, 2, 13, Math.PI, 0);
+    ctx.lineTo(27, 12);
+    ctx.lineTo(-27, 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffd36a';
+    ctx.beginPath();
+    ctx.moveTo(1, 8);
+    ctx.lineTo(-6, 23);
+    ctx.lineTo(2, 21);
+    ctx.lineTo(-2, 34);
+    ctx.lineTo(12, 16);
+    ctx.lineTo(4, 17);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPlane() {
+    ctx.save();
+    ctx.translate(plane.x, plane.y);
+    ctx.rotate(plane.angle);
+    if (boostTime > 0) {
+      ctx.strokeStyle = 'rgba(86,240,190,.7)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      for (var line = -1; line <= 1; line += 1) {
+        ctx.beginPath();
+        ctx.moveTo(line * 7, 22);
+        ctx.lineTo(line * 11, 48 + Math.sin(elapsed * 16 + line) * 8);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = invulnerable > 0 && Math.floor(invulnerable * 12) % 2 ? .35 : 1;
+    ctx.shadowColor = 'rgba(3,13,29,.35)';
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = '#f7fbff';
+    ctx.beginPath();
+    ctx.moveTo(0, -28);
+    ctx.lineTo(27, 22);
+    ctx.lineTo(3, 14);
+    ctx.lineTo(0, 28);
+    ctx.lineTo(-3, 14);
+    ctx.lineTo(-27, 22);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#56f0be';
+    ctx.beginPath();
+    ctx.moveTo(0, -28);
+    ctx.lineTo(3, 14);
+    ctx.lineTo(0, 20);
+    ctx.lineTo(-3, 14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw() {
+    drawBackground();
+    entities.forEach(function (entity) {
+      if (entity.type === 'star') drawStar(entity);
+      else if (entity.type === 'boost') drawBoost(entity);
+      else drawStorm(entity);
+    });
+    particles.forEach(function (particle) {
+      ctx.globalAlpha = clamp(particle.life * 2, 0, 1);
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if (state !== 'intro' || intro.classList.contains('hidden')) drawPlane();
+  }
+
+  function frame(now) {
+    var dt = lastTime ? Math.min(.034, (now - lastTime) / 1000) : 0;
+    lastTime = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function setTouch(event) {
+    var rect = canvas.getBoundingClientRect();
+    touchTargetX = clamp(event.clientX - rect.left, 28, width - 28);
+    plane.targetX = touchTargetX;
+  }
+  canvas.addEventListener('pointerdown', function (event) { touchActive = true; setTouch(event); canvas.setPointerCapture(event.pointerId); });
+  canvas.addEventListener('pointermove', function (event) { if (touchActive) setTouch(event); });
+  canvas.addEventListener('pointerup', function () { touchActive = false; });
+  canvas.addEventListener('pointercancel', function () { touchActive = false; });
+  document.getElementById('start').addEventListener('click', begin);
+  document.getElementById('again').addEventListener('click', begin);
+  document.addEventListener('contextmenu', function (event) { event.preventDefault(); });
+  document.addEventListener('selectstart', function (event) { event.preventDefault(); });
+  window.addEventListener('resize', resize);
+  window.addEventListener('pagehide', stopMotion);
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

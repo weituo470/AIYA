@@ -1,0 +1,30 @@
+{
+  "name": "@aiya/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "prisma generate && prisma studio",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:prod": "prisma migrate deploy",
+    "build": "prisma generate",
+    "lint": "prisma validate",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.3",
+    "bcryptjs": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.0",
+    "dotenv": "^16.6.1",
+    "prisma": "^6.16.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.9.3"
+  }
+}

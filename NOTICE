@@ -1,0 +1,20 @@
+AIYA AI Coding Education
+Copyright 2026 Junwei (君维)
+
+This product includes third-party dependencies distributed through npm, Maven,
+and Android Gradle. Their licenses remain the licenses declared by their
+respective projects.
+
+The following Google MediaPipe task model files are bundled for on-device face
+and gesture recognition and are not relicensed by the AIYA Apache-2.0 license:
+
+1. apps/android-v3/app/src/main/assets/aiya_body/face_landmarker.task
+   Source: https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+   SHA-256: 64184E229B263107BC2B804C6625DB1341FF2BB731874B0BCC2FE6544E0BC9FF
+
+2. apps/android-v3/app/src/main/assets/aiya_body/gesture_recognizer.task
+   Source: https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task
+   SHA-256: 97952348CF6A6A4915C2EA1496B4B37EBABC50CBBF80571435643C455F2B0482
+
+Review Google AI Edge and model-specific terms before redistribution. Audio source
+and license notes are recorded in apps/web/public/audio/achievements/SOURCES.md.

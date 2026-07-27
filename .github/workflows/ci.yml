@@ -1,0 +1,55 @@
+﻿name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  web-and-services:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aiya
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm --filter @aiya/database generate
+      - run: pnpm --filter @aiya/database lint
+      - run: pnpm --filter @aiya/web lint
+      - run: pnpm --filter @aiya/create-runner lint
+      - run: pnpm --filter @aiya/dev-runner lint
+      - run: pnpm --filter @aiya/apk-builder lint
+      - run: pnpm test:create-theatre-core
+      - run: pnpm test:apk-builder
+      - run: pnpm --filter @aiya/web build
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm --filter @aiya/android-v3 typecheck
