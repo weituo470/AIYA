@@ -49,9 +49,14 @@ const findInWrapperCache = () => {
   return candidates[0]?.executable || '';
 };
 
-const gradleExecutable = process.env.GRADLE || findOnPath() || findInWrapperCache();
+const projectDir = fileURLToPath(new URL('..', import.meta.url));
+const wrapperExecutable = join(projectDir, isWindows ? 'gradlew.bat' : 'gradlew');
+const gradleExecutable = process.env.GRADLE
+  || (existsSync(wrapperExecutable) ? wrapperExecutable : '')
+  || findOnPath()
+  || findInWrapperCache();
 if (!gradleExecutable) {
-  console.error('Cannot find Gradle. Install Gradle or run another AIYA Android build once so the Gradle wrapper cache exists.');
+  console.error('Cannot find Gradle. Restore the Gradle wrapper or install Gradle first.');
   process.exit(1);
 }
 
@@ -61,7 +66,6 @@ if (!process.env.ANDROID_HOME && !process.env.ANDROID_SDK_ROOT && isWindows) {
 }
 
 const args = process.argv.slice(2);
-const projectDir = fileURLToPath(new URL('..', import.meta.url));
 const gradleArgs = args.length ? args : [':app:assembleDebug'];
 const result = spawnSync(isWindows ? 'cmd.exe' : gradleExecutable, isWindows ? ['/d', '/s', '/c', gradleExecutable, ...gradleArgs] : gradleArgs, {
   cwd: projectDir,
