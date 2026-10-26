@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 export const runtime = 'nodejs';
 
@@ -17,11 +17,67 @@ const DEFAULT_STREAM_RESOURCE_ID = 'seed-tts-2.0';
 const DEFAULT_STREAM_SPEAKER = 'zh_female_shuangkuaisisi_uranus_bigtts';
 const DEFAULT_STREAM_ENDPOINT = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse';
 const TEACHER_TTS_SPEECH_RATE = -20;
+const TTS_CACHE_VERSION = 'aiya-teacher-tts-v1';
+const TTS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const TTS_CACHE_MAX_ENTRIES = 256;
+const TTS_CACHE_MAX_TOTAL_BYTES = 64 * 1024 * 1024;
+const TTS_CACHE_MAX_AUDIO_BYTES = 4 * 1024 * 1024;
+type TtsCacheEntry = { audio: Buffer; expiresAt: number };
+const ttsAudioCache = new Map<string, TtsCacheEntry>();
+let ttsAudioCacheBytes = 0;
 
 const env = (key: string) => {
   const value = process.env[key]?.trim();
   return value || undefined;
 };
+
+const cacheKey = (config: StreamConfig) =>
+  createHash('sha256')
+    .update(JSON.stringify({
+      version: TTS_CACHE_VERSION,
+      text: config.text,
+      speaker: config.speaker,
+      resourceId: config.resourceId,
+      audioParams,
+    }))
+    .digest('hex');
+
+function readCachedAudio(config: StreamConfig) {
+  const key = cacheKey(config);
+  const entry = ttsAudioCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    ttsAudioCache.delete(key);
+    ttsAudioCacheBytes -= entry.audio.byteLength;
+    return null;
+  }
+  ttsAudioCache.delete(key);
+  ttsAudioCache.set(key, entry);
+  return entry.audio;
+}
+
+function writeCachedAudio(config: StreamConfig, audio: Uint8Array) {
+  if (audio.byteLength < 512 || audio.byteLength > TTS_CACHE_MAX_AUDIO_BYTES) return;
+  const key = cacheKey(config);
+  const existing = ttsAudioCache.get(key);
+  if (existing) {
+    ttsAudioCache.delete(key);
+    ttsAudioCacheBytes -= existing.audio.byteLength;
+  }
+  const copy = Buffer.from(audio);
+  ttsAudioCache.set(key, { audio: copy, expiresAt: Date.now() + TTS_CACHE_TTL_MS });
+  ttsAudioCacheBytes += copy.byteLength;
+  while (ttsAudioCache.size > TTS_CACHE_MAX_ENTRIES || ttsAudioCacheBytes > TTS_CACHE_MAX_TOTAL_BYTES) {
+    const oldestKey = ttsAudioCache.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    const oldest = ttsAudioCache.get(oldestKey);
+    ttsAudioCache.delete(oldestKey);
+    if (oldest) ttsAudioCacheBytes -= oldest.audio.byteLength;
+  }
+}
+
+const audioBody = (audio: Uint8Array) =>
+  audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer;
 
 const jsonError = (message: string, status = 500, extra: JsonObject = {}) =>
   Response.json({ error: message, ...extra }, { status });
@@ -131,15 +187,32 @@ function audioStream(
   firstAudio: Buffer | null,
   initialBuffer: string,
   decoder: TextDecoder,
+  onComplete?: (audio: Uint8Array) => void,
 ) {
   let buffer = initialBuffer;
   let sentFirst = false;
+  let completed = false;
+  let cachedBytes = 0;
+  const cachedChunks: Buffer[] = [];
+  const remember = (audio: Uint8Array | null) => {
+    if (!audio?.byteLength || cachedBytes > TTS_CACHE_MAX_AUDIO_BYTES) return;
+    cachedBytes += audio.byteLength;
+    if (cachedBytes <= TTS_CACHE_MAX_AUDIO_BYTES) cachedChunks.push(Buffer.from(audio));
+  };
+  const complete = () => {
+    if (completed) return;
+    completed = true;
+    if (onComplete && cachedBytes >= 512 && cachedBytes <= TTS_CACHE_MAX_AUDIO_BYTES) {
+      onComplete(Buffer.concat(cachedChunks, cachedBytes));
+    }
+  };
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
         if (!sentFirst) {
           sentFirst = true;
           if (firstAudio?.byteLength) {
+            remember(firstAudio);
             controller.enqueue(firstAudio);
             return;
           }
@@ -151,6 +224,7 @@ function audioStream(
             buffer = event.rest;
             const audio = parseSsePayload(event.block);
             if (audio?.byteLength) {
+              remember(audio);
               controller.enqueue(audio);
               return;
             }
@@ -161,8 +235,12 @@ function audioStream(
           if (chunk.done) {
             if (buffer.trim()) {
               const audio = parseSsePayload(buffer);
-              if (audio?.byteLength) controller.enqueue(audio);
+              if (audio?.byteLength) {
+                remember(audio);
+                controller.enqueue(audio);
+              }
             }
+            complete();
             controller.close();
             return;
           }
@@ -173,6 +251,7 @@ function audioStream(
       }
     },
     cancel() {
+      completed = true;
       void reader.cancel().catch(() => {});
     },
   });
@@ -192,13 +271,29 @@ async function handle(request: Request) {
   if (text.length > MAX_TEXT_LENGTH) text = text.slice(0, MAX_TEXT_LENGTH);
 
   try {
-    const reader = await openUpstream(readConfig(text, speaker));
+    const config = readConfig(text, speaker);
+    const cached = await readCachedAudio(config);
+    if (cached) {
+      return new Response(audioBody(cached), {
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Cache-Control': 'private, max-age=604800',
+          'X-AIYA-TTS-Mode': 'server-cache',
+          'X-AIYA-TTS-Cache': 'hit',
+        },
+      });
+    }
+
+    const reader = await openUpstream(config);
     const first = await readFirstAudioChunk(reader);
-    return new Response(audioStream(reader, first.audio, first.rest, first.decoder), {
+    return new Response(audioStream(reader, first.audio, first.rest, first.decoder, (audio) => {
+      void writeCachedAudio(config, audio);
+    }), {
       headers: {
         'Content-Type': 'audio/mpeg',
         'Cache-Control': 'no-store',
         'X-AIYA-TTS-Mode': 'volcengine-sse-stream',
+        'X-AIYA-TTS-Cache': 'miss',
       },
     });
   } catch (error) {

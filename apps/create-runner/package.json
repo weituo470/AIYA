@@ -9,6 +9,7 @@
     "build": "node ../../scripts/check-js-syntax.mjs src",
     "lint": "node ../../scripts/check-js-syntax.mjs src",
     "typecheck": "node ../../scripts/check-js-syntax.mjs src",
+    "validate:serve": "node src/validation-server.js",
     "smoke": "node --env-file=.env ./src/smoke.js"
   },
   "dependencies": {

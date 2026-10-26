@@ -1,5 +1,7 @@
+import type { BuildExecution } from '../../../lib/build-contract';
+import type { GoldenKeyContext, GoldenKeyLineage } from '../../_shared/golden-key-flow';
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed';
-export type ViewMode = 'preview' | 'source' | 'evidence' | 'replay';
+export type ViewMode = 'preview' | 'source' | 'evidence' | 'replay' | 'trace';
 
 export type JobEvent = {
   at: string;
@@ -18,6 +20,9 @@ export type DeviceContext = {
 };
 
 export type GeneratedResult = {
+  goldenKey?: GoldenKeyLineage;
+  id?: string;
+  build?: BuildExecution;
   title?: string;
   brief?: string;
   html?: string;
@@ -37,7 +42,9 @@ export type ValidationReport = {
 };
 
 export type CreateJob = {
+  goldenKeyContext?: GoldenKeyContext;
   id: string;
+  build?: BuildExecution;
   interactionId?: string;
   status: JobStatus;
   stage: string;

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "aiya-build-phase2-v1",
+  "taskId": "test-task-trace-calculator",
+  "preference": "speed",
+  "operation": "create",
+  "selection": { "source": "strategy", "requestedModelMode": "default", "selectedModelMode": "default", "complexity": "standard", "signals": [], "reason": "测试夹具：优先快速配置。" },
+  "route": "direct-http",
+  "model": { "requested": "test-speed", "returned": "test-speed", "provider": "http", "apiType": "openai" },
+  "stages": [
+    { "name": "generation", "startedAt": "2026-10-08T00:00:00Z", "durationMs": 12000, "status": "passed" },
+    { "name": "browser-validation", "startedAt": "2026-10-08T00:00:12Z", "durationMs": 2500, "status": "passed" }
+  ],
+  "checks": [
+    { "name": "html-syntax-intent", "status": "passed", "detail": "测试夹具：静态检查通过。" },
+    { "name": "browser-runtime", "status": "passed", "detail": "测试夹具：计算器核心功能通过。" },
+    { "name": "android-device", "status": "not-run", "detail": "未执行实机验证。" }
+  ],
+  "validations": [{ "schemaVersion": 1, "status": "passed", "coverage": "calculator-core", "durationMs": 2500, "checks": [{ "name": "calc:add", "status": "passed", "severity": "error", "detail": "2+3= → 5" }] }],
+  "calls": [{ "model": "test-speed", "returnedModel": "test-speed", "status": "succeeded", "durationMs": 12000, "usage": { "prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30 } }],
+  "cost": { "currency": null, "amount": null, "status": "unknown" },
+  "version": { "projectId": "test-project", "parentHtmlSha256": null, "outputHtmlSha256": "test-output-fingerprint", "artifactId": "test-artifact" },
+  "status": "succeeded",
+  "totalDurationMs": 14500
+}

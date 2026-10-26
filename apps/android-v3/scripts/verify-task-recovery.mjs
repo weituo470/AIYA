@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const base = new URL('../app/src/main/', import.meta.url);
+const main = readFileSync(new URL('java/cc/shenliu/aiya/v3/MainActivity.kt', base), 'utf8');
+const recovery = readFileSync(new URL('java/cc/shenliu/aiya/v3/RecoverableGeneration.kt', base), 'utf8');
+const manifest = readFileSync(new URL('AndroidManifest.xml', base), 'utf8');
+assert.match(recovery, /if \(resumeOnly\) transport \{ poll\(timeoutMs\) \} else transport\(submit\)/);
+assert.match(main, /if \(!uncertain\) clearBackgroundGenerationRequest\(context\)/);
+assert.match(main, /resumeOnly = recoveryOnly/);
+assert.match(main, /generationRecoveryBudgetMs\(previousSnapshot\?\.startedAt/);
+assert.match(main, /autoRecoveryAttemptedTaskId != uncertainTaskId/);
+assert.match(main, /STATUS_AWAITING_RESULT -> initialBackgroundGeneration\.asFailureState\(\)/);
+assert.match(main, /STATUS_AWAITING_RESULT -> \{[\s\S]*?snapshot\.asFailureState\(\)/);
+assert.match(main, /Lifecycle\.Event\.ON_RESUME/);
+assert.match(main, /registerDefaultNetworkCallback\(networkCallback\)/);
+assert.match(main, /unregisterNetworkCallback\(networkCallback\)/);
+assert.match(manifest, /android\.permission\.ACCESS_NETWORK_STATE/);
+assert.match(main, /Text\(if \(recoverable\) "恢复原任务" else "再试一次", fontSize = 16\.sp/);
+assert.match(main, /onClick = \{ if \(recoverable\) onRecover\(\) else onRetry\(failed\.lastIdea\) \}/);
+const panel = main.slice(main.indexOf('private fun FailedPlayTab('), main.indexOf('private fun WorkPlayTab('));
+assert.doesNotMatch(panel, /fontSize\s*=\s*(?:[0-9]|1[0-3])\.sp/);
+assert.match(panel, /fontSize = 18\.sp/);
+assert.match(panel, /heightIn\(min = 48\.dp\)/);
+console.log('PASS GET-only recovery wiring, preserved request, legacy migration, lifecycle/network cleanup, recovery UI readability. Static contract only; not phone UI acceptance.');

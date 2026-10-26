@@ -21,6 +21,8 @@ import android.media.AudioRecord
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -48,6 +50,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -65,10 +69,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -77,6 +83,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -238,16 +245,28 @@ private enum class AiyaTab(
 private enum class GenerationModelMode(
     val id: String,
     val label: String,
+    val modelId: String,
     val description: String,
 ) {
-    Default("default", "默认稳定", "使用线上默认模型，优先保证生成质量和稳定性。"),
-    Fast("fast", "速度优先", "适合课堂快速试错；服务端未配置快速模型时会自动回到默认模型。"),
-    Quality("quality", "质量优先", "适合复杂游戏和精修；可能等待更久。");
+    Default("default", "DeepSeek V4.1 Flash", "deepseek-flash", "响应更快，适合日常创作和快速尝试。"),
+    Quality("quality", "GPT-6 Astra · High", "gpt-6-astra", "高强度推理，适合复杂需求和精细修改；可能等待更久。"),
+    Fusion("fusion", "Fusion Max 2.0（实验）", "fusion-max-2.0", "需先在服务端开放。生成和继续修改可能超时；若发生降级，请以任务轨迹中的实际模型为准。");
 
     companion object {
-        fun fromId(id: String?): GenerationModelMode =
-            entries.firstOrNull { it.id == id } ?: Default
+        // Legacy "fast" preferences and pending requests migrate to DeepSeek.
+        fun fromId(id: String?): GenerationModelMode = when (id) {
+            "quality" -> Quality
+            "fusion" -> Fusion
+            else -> Default
+        }
     }
+}
+
+private enum class BuildPreference(val id: String, val label: String, val description: String) {
+    Speed("speed", "速度优先", "优先快速配置，尽快验证想法。"),
+    Auto("auto", "智能判断", "按需求选模型，限时降级，并跳过近期连续连接失败的配置。"),
+    Quality("quality", "质量优先", "优先质量配置，允许等待更久。");
+    companion object { fun fromId(id: String?): BuildPreference = entries.firstOrNull { it.id == id } ?: Auto }
 }
 
 private data class TeacherProfile(
@@ -258,6 +277,150 @@ private data class TeacherProfile(
 private data class ClassroomRuntimeSettings(
     val teacherProfile: TeacherProfile = TeacherProfile(),
     val modelMode: GenerationModelMode = GenerationModelMode.Default,
+)
+
+internal data class PromptExample(
+    val id: String,
+    val title: String,
+    val category: String,
+    val summary: String,
+    val prompt: String,
+    val requirements: String = "",
+    val checks: List<String> = emptyList(),
+    val nextStep: String = "",
+)
+
+private val promptExamples = listOf(
+    PromptExample(
+        id = "breathing",
+        title = "潮汐呼吸",
+        category = "放松训练",
+        summary = "呼吸节奏、倒计时、进度与完成反馈",
+        prompt = """
+            做一个名为「潮汐呼吸」的移动端优先呼吸训练应用，帮助学习压力大的学生在1到5分钟内放松。
+
+            视觉采用温暖象牙白、鼠尾草绿和少量珊瑚橙，留白充足、圆角柔和；背景用纯CSS制作很淡的纸张颗粒和漂浮光斑，不要蓝紫霓虹。中央放置会随吸气、停留、呼气缩放的呼吸圆，圆内显示当前阶段和剩余秒数。
+
+            提供4-4-6、4-7-8两种节奏和1、3、5分钟时长；实现“开始”“暂停”“继续”“重置”。显示已完成轮次、总进度和简短鼓励。暂停时动画和倒计时必须同时停止，结束后显示完成状态。手机竖屏无横向滚动，并支持减少动态效果。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "pour-over",
+        title = "山野手冲",
+        category = "生活计时",
+        summary = "分阶段咖啡冲煮计时与水量提示",
+        prompt = """
+            设计一个名为「山野手冲」的咖啡冲煮计时器，适合手机放在咖啡台上使用。
+
+            整体采用日系编辑排版：燕麦米色背景、深咖啡文字、苔藓绿强调色，使用细线分隔、大号数字和少量手绘圆点；用CSS图形表现咖啡杯和蒸汽，不使用照片。中间是大号环形总计时器，下方按时间轴显示“闷蒸”“第一次注水”“第二次注水”“滴滤完成”。
+
+            提供15g/250ml和20g/320ml两个配方，实现“开始”“暂停”“下一步”“重置”。当前步骤高亮，并显示本步骤建议水量；环形进度随时间变化，结束后显示总用时和品鉴提示。所有按钮必须真实可用。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "memory-game",
+        title = "星图记忆",
+        category = "益智游戏",
+        summary = "4×4翻牌配对、计时、步数与难度",
+        prompt = """
+            做一个名为「星图记忆」的4×4翻牌配对小游戏，面向8—14岁学生。
+
+            视觉像精致的天文馆互动展：深海军蓝背景、暖金星光、半透明深色面板，文字对比清楚，不堆满发光特效。16张卡片使用8组星座符号，卡背采用统一星轨纹样。
+
+            点击两张牌后判断配对；错误时短暂停留再翻回，正确时保留并出现轻微庆祝动画。顶部显示“用时”“步数”“已配对”，提供“开始游戏”“重新开始”和简单、普通两种难度，难度影响预览时间。全部配对后显示成绩和评级。支持鼠标和触摸，手机上卡片不能溢出。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "mood-dashboard",
+        title = "今日能量",
+        category = "情绪记录",
+        summary = "心情签到、能量滑杆、建议与趋势",
+        prompt = """
+            创建一个名为「今日能量」的轻量情绪签到应用，只记录本次页面会话，不需要账号或长期保存。
+
+            视觉采用现代健康杂志风：奶油白底、墨绿色正文、番茄红点缀，大标题、非对称留白和细腻阴影，避免常见蓝紫渐变。首屏包含一句问候、5个心情选项、1—10能量滑杆和备注输入框。
+
+            点击“完成签到”后生成今日摘要，显示心情、能量值、当前时间，以及根据能量高低给出的3条建议。下方显示最近5次本次会话签到的迷你趋势图，并提供“清空本次记录”。选中、提交成功、空内容和清空操作都要有明确反馈；移动端单列、桌面端双栏。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "cognition-compass",
+        title = "认知罗盘",
+        category = "互动测评",
+        summary = "逐题选择、信心程度与四维报告",
+        prompt = """
+            制作一个名为「认知罗盘」的8题思考方式测评应用，核心流程是“逐题选择→确认信心程度→查看维度报告”。
+
+            采用理性编辑设计：纸张灰背景、墨黑文字、酸性荧光绿作为唯一强调色；小圆角、细边框、几乎不用阴影，像严谨的研究手册。桌面端使用窄侧栏显示题目进度，手机端改成顶部进度条，每次只展示一道题。
+
+            预置8道中文情境题，每题4个选项和1—5信心滑杆。支持“上一题”“下一题”、未作答提醒和回退保持答案。结果页展示“证据意识、系统思考、行动倾向、开放程度”四个维度以及建议。相同答案必须得到相同结果，并提供“重新测评”。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "drawing-studio",
+        title = "彩虹小画室",
+        category = "创意工具",
+        summary = "触屏绘画、撤销、橡皮与图片下载",
+        prompt = """
+            制作一个名为「彩虹小画室」的触屏绘画应用，面向儿童和亲子使用。
+
+            视觉柔和但不幼稚：云朵白、天空蓝、珊瑚红和明黄色；工具栏像排列整齐的文具盒，避免卡通图片和Emoji堆砌。顶部显示标题和操作提示，中间是尽可能大的自适应Canvas画布，底部固定工具栏。
+
+            同时支持鼠标和手指绘画，提供6种颜色、画笔粗细滑杆，以及“画笔”“橡皮”“撤销”“清空”“下载图片”。撤销最多保留20步，清空前需要确认，下载生成本地PNG。触屏绘画时页面不能跟随滚动，所有工具必须有明显选中状态。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "envelope-budget",
+        title = "零钱信封",
+        category = "预算工具",
+        summary = "预算、支出、分类占比与超支提示",
+        prompt = """
+            制作一个名为「零钱信封」的个人月度预算应用，核心闭环是“设置预算→记录支出→查看剩余金额和分类占比”。
+
+            采用温暖账本风：燕麦色背景、炭黑文字、森林绿和橙红点缀，使用票据式虚线、细边框和克制阴影，金额使用等宽感排版。顶部显示本月预算、已支出和剩余金额；中部用CSS圆环显示分类占比；下方为支出列表和新增区域。
+
+            预置5800元预算及6条餐饮、交通、购物支出。支持新增、删除、分类筛选和“恢复示例数据”。金额非法时显示提示，所有金额保留两位小数；超预算时使用明显但不刺眼的警示状态。数据只保留当前页面。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "packing-list",
+        title = "行李减法",
+        category = "旅行清单",
+        summary = "分类清单、打包进度与未装筛选",
+        prompt = """
+            制作一个名为「行李减法」的移动端旅行打包清单，核心流程是“查看分类→勾选物品→确认打包完成”。
+
+            采用旅行编辑风：浅沙色背景、远山蓝和日落橙点缀，大面积留白、细边框和行李标签式标题，装饰只使用CSS几何图形。顶部显示“大理·4天3夜”、出发倒计时和总进度环；中部按证件、衣物、洗护、电子用品分类。
+
+            预置18项物品，支持勾选、取消、添加、删除、折叠分类和“只看未装”。每个分类及总进度实时更新，全部完成后显示“可以出发了”。删除需要二次确认，空名称有提示，手机上适合单手操作。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "plant-care",
+        title = "绿友浇水",
+        category = "植物养护",
+        summary = "今日待办、浇水周期与未来时间线",
+        prompt = """
+            制作一个名为「绿友浇水」的室内植物养护应用，核心闭环是“查看今日待办→标记已浇水→计算下次日期”。
+
+            视觉采用植物实验室风：鼠尾草绿、奶油白、陶土橙和深绿色；使用CSS叶片轮廓、细线刻度和标本标签，不使用照片。顶部突出今日待办数量，中部切换不同植物，下方展示浇水周期、光照建议和未来7日时间线。
+
+            预置绿萝、龟背竹、虎皮兰、薄荷和多肉。支持“标记已浇水”“撤销浇水”“只看今日待办”和“恢复示例数据”。操作后立即更新最近日期和下次浇水日期；没有待办时显示安静的完成状态，日期不能出现负数。
+        """.trimIndent(),
+    ),
+    PromptExample(
+        id = "beat-workshop",
+        title = "口袋节拍",
+        category = "音乐实验",
+        summary = "4轨8步节奏编辑与原生合成音色",
+        prompt = """
+            制作一个名为「口袋节拍工坊」的4轨8步节奏编辑器，面向音乐初学者。
+
+            采用克制的暗色合成器风格：黑蓝背景、面板灰、薄荷绿和橙色点缀，使用清晰网格、机械刻度和轻微发光，不使用外部图标或音频文件。中央显示4行8列节拍网格，轨道名称为“底鼓、拍手、沙锤、木鱼”。
+
+            点击格子切换节拍状态，使用浏览器原生Web Audio合成短音色。实现“播放”“停止”“清空”“示例节奏”“声音”，速度范围60—160 BPM，播放游标逐格移动。音频必须由用户点击后启动，停止后再次播放不能叠加多个循环；手机端每个节拍格至少44px。
+        """.trimIndent(),
+    ),
 )
 
 private fun isExplicitNewWorkRequest(idea: String): Boolean {
@@ -319,7 +482,7 @@ private fun estimateCodingTimeLabel(
     if (currentWork != null) seconds += 10
     seconds += when (modelMode) {
         GenerationModelMode.Quality -> 20
-        GenerationModelMode.Fast -> -10
+        GenerationModelMode.Fusion -> 20
         GenerationModelMode.Default -> 0
     }
     return when {
@@ -343,6 +506,7 @@ private data class GeneratedWork(
     val html: String,
     val reply: String,
     val model: String,
+    val buildExecutionJson: String = "",
     val sourceIdea: String = "",
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,
@@ -356,6 +520,8 @@ private data class BackgroundGenerationRequest(
     val idea: String,
     val previousWorkId: String?,
     val modelModeId: String,
+    val buildPreferenceId: String = "auto",
+    val manualModel: Boolean = true,
 )
 
 private data class BackgroundGenerationSnapshot(
@@ -364,6 +530,8 @@ private data class BackgroundGenerationSnapshot(
     val status: String,
     val message: String = "",
     val completedAt: Long = 0L,
+    val startedAt: Long = System.currentTimeMillis(),
+    val buildExecutionJson: String = "",
 )
 
 class GenerationForegroundService : Service() {
@@ -376,7 +544,7 @@ class GenerationForegroundService : Service() {
         // Android requires this call very shortly after startForegroundService().
         // Do it before encrypted state I/O so a corrupted/stale task file can never
         // turn into ForegroundServiceDidNotStartInTimeException and crash the app.
-        if (intent?.action == ACTION_START) {
+        if (intent?.action == ACTION_START || intent?.action == ACTION_RECOVER) {
             try {
                 showForegroundNotification("")
             } catch (error: Throwable) {
@@ -409,7 +577,19 @@ class GenerationForegroundService : Service() {
         }
 
         val generationId = intent?.getStringExtra(EXTRA_GENERATION_ID).orEmpty()
+        if (worker?.isAlive == true) return START_NOT_STICKY
+        val recoveryOnly = intent?.action == ACTION_RECOVER
+        val previousSnapshot = readBackgroundGenerationSnapshot(applicationContext)
+            ?.takeIf { it.generationId == generationId }
         val request = readBackgroundGenerationRequest(applicationContext)
+            ?.takeIf { it.generationId == generationId }
+            ?: if (recoveryOnly && previousSnapshot != null &&
+                generationNeedsRecovery(previousSnapshot.status, previousSnapshot.message)) {
+                // Legacy timeout snapshots still have the identity of the original
+                // task. Save recovered work as a separate project, not over an
+                // unrelated active project, when old request metadata is missing.
+                BackgroundGenerationRequest(generationId, previousSnapshot.idea, null, GenerationModelMode.Default.id)
+            } else null
         if (generationId.isBlank() || request?.generationId != generationId) {
             if (generationId.isNotBlank()) {
                 runCatching {
@@ -431,9 +611,8 @@ class GenerationForegroundService : Service() {
             stopSelf(startId)
             return START_NOT_STICKY
         }
-        if (worker?.isAlive == true) return START_NOT_STICKY
-
         cancelled = false
+        if (recoveryOnly) writeBackgroundGenerationRequest(applicationContext, request)
         showForegroundNotification(request.idea)
         writeBackgroundGenerationSnapshot(
             applicationContext,
@@ -441,7 +620,9 @@ class GenerationForegroundService : Service() {
                 generationId = request.generationId,
                 idea = request.idea,
                 status = STATUS_RUNNING,
-                message = "\u6b63\u5728\u540e\u53f0\u751f\u6210\u4f5c\u54c1\u3002",
+                message = if (recoveryOnly) "正在取回原任务结果，不会重新生成。" else "\u6b63\u5728\u540e\u53f0\u751f\u6210\u4f5c\u54c1\u3002",
+                startedAt = previousSnapshot?.startedAt ?: System.currentTimeMillis(),
+                buildExecutionJson = previousSnapshot?.buildExecutionJson.orEmpty(),
             ),
         )
         notifyGenerationChanged(applicationContext, request.generationId)
@@ -457,8 +638,23 @@ class GenerationForegroundService : Service() {
                     idea = request.idea,
                     currentWork = previousWork,
                     modelMode = GenerationModelMode.fromId(request.modelModeId),
+                    buildPreference = BuildPreference.fromId(request.buildPreferenceId),
+                    manualModel = request.manualModel,
+                    recoveryOnly = recoveryOnly,
+                    generationBudgetMs = if (recoveryOnly) generationRecoveryBudgetMs(previousSnapshot?.startedAt ?: System.currentTimeMillis()) else 540_000L,
+                    initialBuildJson = previousSnapshot?.buildExecutionJson.orEmpty(),
+                    onProgress = { progress ->
+                        if (!cancelled) {
+                            val previous = readBackgroundGenerationSnapshot(context)
+                            if (previous?.generationId == request.generationId &&
+                                (previous.message != progress.message || previous.buildExecutionJson != progress.buildJson)) {
+                                writeBackgroundGenerationSnapshot(context, previous.copy(message = progress.message, buildExecutionJson = progress.buildJson))
+                                notifyGenerationChanged(context, request.generationId)
+                            }
+                        }
+                    },
                 )
-                if (cancelled) return@Thread
+                if (cancelled || readBackgroundGenerationSnapshot(context)?.generationId != request.generationId) return@Thread
                 saveWorkToLibrary(
                     context = context,
                     generatedWork = generated,
@@ -474,27 +670,36 @@ class GenerationForegroundService : Service() {
                         status = STATUS_SUCCEEDED,
                         message = generated.title.ifBlank { "AIYA \u4f5c\u54c1" },
                         completedAt = System.currentTimeMillis(),
+                        startedAt = previousSnapshot?.startedAt ?: System.currentTimeMillis(),
+                        buildExecutionJson = generated.buildExecutionJson,
                     ),
                 )
                 clearBackgroundGenerationRequest(context)
             } catch (error: Throwable) {
-                if (!cancelled) {
+                if (!cancelled && readBackgroundGenerationSnapshot(context)?.generationId == request.generationId) {
+                    val uncertain = error is GenerationResultUncertain
+                    Log.w(AIYA_LOG_TAG, "generation id=${request.generationId} uncertain=$uncertain: ${error.message}")
                     writeBackgroundGenerationSnapshot(
                         context,
                         BackgroundGenerationSnapshot(
                             generationId = request.generationId,
                             idea = request.idea,
-                            status = STATUS_FAILED,
+                            status = if (uncertain) STATUS_AWAITING_RESULT else STATUS_FAILED,
                             message = (error.message ?: "\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002").take(220),
                             completedAt = System.currentTimeMillis(),
+                            buildExecutionJson = (error as? GenerationTaskFailure)?.buildJson.orEmpty(),
+                            startedAt = previousSnapshot?.startedAt ?: System.currentTimeMillis(),
                         ),
                     )
-                    clearBackgroundGenerationRequest(context)
+                    // Preserve project/task metadata for a future GET-only recovery.
+                    if (!uncertain) clearBackgroundGenerationRequest(context)
                 }
             } finally {
                 notifyGenerationChanged(context, request.generationId)
                 stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf(startId)
+                // ON_RESUME may have sent another RECOVER intent to this same
+                // live worker. Stop the service even if its startId advanced.
+                stopSelf()
             }
         }.apply {
             name = "aiya-v3-background-generation"
@@ -555,6 +760,7 @@ class GenerationForegroundService : Service() {
 
     companion object {
         const val ACTION_START = "cc.shenliu.aiya.v3.action.START_GENERATION"
+        const val ACTION_RECOVER = "cc.shenliu.aiya.v3.action.RECOVER_GENERATION"
         const val ACTION_CANCEL = "cc.shenliu.aiya.v3.action.CANCEL_GENERATION"
         const val EXTRA_GENERATION_ID = "generationId"
         private const val NOTIFICATION_CHANNEL_ID = "aiya_generation"
@@ -562,6 +768,7 @@ class GenerationForegroundService : Service() {
         const val STATUS_RUNNING = "running"
         const val STATUS_SUCCEEDED = "succeeded"
         const val STATUS_FAILED = "failed"
+        const val STATUS_AWAITING_RESULT = "awaiting-result"
         const val STATUS_CANCELLED = "cancelled"
     }
 }
@@ -578,9 +785,23 @@ private data class DeleteWorkLibraryResult(
 
 private sealed interface GenerationState {
     data object Idle : GenerationState
-    data class Loading(val idea: String, val generationId: String) : GenerationState
-    data class Failed(val message: String, val lastIdea: String) : GenerationState
+    data class Loading(val idea: String, val generationId: String, val message: String = "正在提交需求。",
+        val startedAt: Long = System.currentTimeMillis(), val buildExecutionJson: String = "") : GenerationState
+    data class Failed(val message: String, val lastIdea: String, val buildExecutionJson: String = "",
+        val recoveryTaskId: String = "") : GenerationState
     data object Ready : GenerationState
+}
+
+private fun BackgroundGenerationSnapshot.asFailureState(): GenerationState.Failed {
+    val recoverable = generationNeedsRecovery(status, message)
+    return GenerationState.Failed(
+        message = if (recoverable && status == GenerationForegroundService.STATUS_FAILED)
+            "原任务结果尚未取回，不代表生成失败。可恢复原任务，不会重新调用模型。"
+        else message.ifBlank { "生成失败，请查看任务轨迹。" },
+        lastIdea = idea,
+        buildExecutionJson = buildExecutionJson,
+        recoveryTaskId = if (recoverable) generationId else "",
+    )
 }
 
 private sealed interface ExportState {
@@ -743,11 +964,12 @@ private fun AiyaV3App() {
                     GenerationForegroundService.STATUS_RUNNING -> GenerationState.Loading(
                         initialBackgroundGeneration.idea,
                         initialBackgroundGeneration.generationId,
+                        initialBackgroundGeneration.message,
+                        initialBackgroundGeneration.startedAt,
+                        initialBackgroundGeneration.buildExecutionJson,
                     )
-                    GenerationForegroundService.STATUS_FAILED -> GenerationState.Failed(
-                        initialBackgroundGeneration.message.ifBlank { "\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002" },
-                        initialBackgroundGeneration.idea,
-                    )
+                    GenerationForegroundService.STATUS_FAILED,
+                    GenerationForegroundService.STATUS_AWAITING_RESULT -> initialBackgroundGeneration.asFailureState()
                     else -> if (readActiveWork(context.applicationContext, initialWorkLibrary) != null) {
                         GenerationState.Ready
                     } else {
@@ -766,6 +988,7 @@ private fun AiyaV3App() {
         var selectedModelMode by remember {
             mutableStateOf(GenerationModelMode.fromId(appPreferences.getString(PREF_MODEL_MODE, null)))
         }
+        var modelSelectionRequestId by remember { mutableStateOf(0L) }
         var exportState by remember { mutableStateOf<ExportState>(ExportState.Idle) }
         var sourceViewerWork by remember { mutableStateOf<GeneratedWork?>(null) }
         var showShowcase by remember { mutableStateOf(false) }
@@ -780,6 +1003,7 @@ private fun AiyaV3App() {
                     ?.generationId,
             )
         }
+        var autoRecoveryAttemptedTaskId by remember { mutableStateOf("") }
         val mainHandler = remember { Handler(Looper.getMainLooper()) }
         val voiceController = remember(context, mainHandler) {
             AndroidVoiceInputController(context.applicationContext, mainHandler)
@@ -857,12 +1081,32 @@ private fun AiyaV3App() {
             )
         }
 
-        fun selectModelMode(mode: GenerationModelMode) {
+        fun applySelectedModelMode(mode: GenerationModelMode) {
             selectedModelMode = mode
             hasLocalModelMode = true
             appPreferences.edit().putString(PREF_MODEL_MODE, mode.id).apply()
             Toast.makeText(context, "已切换到${mode.label}", Toast.LENGTH_SHORT).show()
             speakTeacher("已经切换到${mode.label}。下一次创作会优先使用这个模型配置。")
+        }
+
+        fun selectModelMode(mode: GenerationModelMode) {
+            val selectionRequestId = ++modelSelectionRequestId
+            if (mode != GenerationModelMode.Fusion) {
+                applySelectedModelMode(mode)
+                return
+            }
+            // Metadata-only check: never pay for a model probe just to select it.
+            Thread {
+                val available = runCatching { isFusionConfiguredOnServer() }
+                mainHandler.post {
+                    if (selectionRequestId != modelSelectionRequestId) return@post
+                    if (available.getOrDefault(false)) {
+                        applySelectedModelMode(mode)
+                    } else {
+                        Toast.makeText(context, if (available.isFailure) "暂时无法确认 Fusion 状态，请检查网络后重试。当前模型未改变。" else "Fusion 服务端尚未开放，当前模型未改变。", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.apply { name = "aiya-v3-model-availability"; isDaemon = true; start() }
         }
 
         fun updateDisplayName(value: String) {
@@ -903,7 +1147,7 @@ private fun AiyaV3App() {
             when (snapshot.status) {
                 GenerationForegroundService.STATUS_RUNNING -> {
                     activeGenerationId = snapshot.generationId
-                    generationState = GenerationState.Loading(snapshot.idea, snapshot.generationId)
+                    generationState = GenerationState.Loading(snapshot.idea, snapshot.generationId, snapshot.message, snapshot.startedAt, snapshot.buildExecutionJson)
                 }
                 GenerationForegroundService.STATUS_SUCCEEDED -> {
                     val refreshedLibrary = readWorkLibrary(context.applicationContext)
@@ -924,20 +1168,88 @@ private fun AiyaV3App() {
                         .putString(PREF_LAST_COMPLETED_GENERATION_ID, snapshot.generationId)
                         .apply()
                 }
-                GenerationForegroundService.STATUS_FAILED -> {
+                GenerationForegroundService.STATUS_FAILED,
+                GenerationForegroundService.STATUS_AWAITING_RESULT -> {
                     activeGenerationId = null
-                    generationState = GenerationState.Failed(
-                        snapshot.message.ifBlank { "\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002" },
-                        snapshot.idea,
-                    )
+                    generationState = snapshot.asFailureState()
                     selectedTab = AiyaTab.Play
-                    clearBackgroundGenerationSnapshot(context.applicationContext)
+                    // Keep failed task evidence until the next request overwrites it.
                 }
                 else -> {
                     activeGenerationId = null
                     generationState = if (currentWork != null) GenerationState.Ready else GenerationState.Idle
                     clearBackgroundGenerationSnapshot(context.applicationContext)
                 }
+            }
+        }
+
+        fun recoverOriginalGeneration() {
+            val snapshot = readBackgroundGenerationSnapshot(context.applicationContext) ?: return
+            if (!generationNeedsRecovery(snapshot.status, snapshot.message)) return
+            if (snapshot.status != GenerationForegroundService.STATUS_RUNNING) {
+                autoRecoveryAttemptedTaskId = snapshot.generationId
+            }
+            try {
+                ContextCompat.startForegroundService(
+                    context.applicationContext,
+                    Intent(context.applicationContext, GenerationForegroundService::class.java)
+                        .setAction(GenerationForegroundService.ACTION_RECOVER)
+                        .putExtra(GenerationForegroundService.EXTRA_GENERATION_ID, snapshot.generationId),
+                )
+                activeGenerationId = snapshot.generationId
+                generationState = GenerationState.Loading(snapshot.idea, snapshot.generationId,
+                    "正在取回原任务结果，不会重新生成。", snapshot.startedAt, snapshot.buildExecutionJson)
+                selectedTab = AiyaTab.Play
+            } catch (error: Exception) {
+                Log.w(AIYA_LOG_TAG, "could not recover generation id=${snapshot.generationId}", error)
+                Toast.makeText(context, "暂时无法启动恢复，请稍后点击恢复原任务。", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        // Resume a killed worker from durable task identity using GET only.
+        // Keep the latest callbacks: a lifecycle observer must not capture stale
+        // Compose state when a user starts a new task or cancels the old one.
+        val resumeGeneration by rememberUpdatedState(newValue = { recoverOriginalGeneration() })
+        val reconcileGeneration by rememberUpdatedState(newValue = { reconcileBackgroundGeneration() })
+        DisposableEffect(context) {
+            val lifecycle = (context as? ComponentActivity)?.lifecycle
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    autoRecoveryAttemptedTaskId = ""
+                    reconcileGeneration()
+                    resumeGeneration()
+                }
+            }
+            lifecycle?.addObserver(observer)
+            val connectivity = context.getSystemService(ConnectivityManager::class.java)
+            val networkCallback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    mainHandler.post {
+                        if (lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true) {
+                            val snapshot = readBackgroundGenerationSnapshot(context.applicationContext)
+                            if (snapshot != null && snapshot.status != GenerationForegroundService.STATUS_RUNNING &&
+                                generationNeedsRecovery(snapshot.status, snapshot.message)) resumeGeneration()
+                        }
+                    }
+                }
+            }
+            val networkRegistered = runCatching { connectivity.registerDefaultNetworkCallback(networkCallback) }.isSuccess
+            onDispose {
+                lifecycle?.removeObserver(observer)
+                if (networkRegistered) runCatching { connectivity.unregisterNetworkCallback(networkCallback) }
+            }
+        }
+
+        val uncertainTaskId = (generationState as? GenerationState.Failed)?.recoveryTaskId.orEmpty()
+        LaunchedEffect(uncertainTaskId) {
+            // A suspended worker may wake on ON_RESUME and only then notice its
+            // old deadline. Recover that newly uncertain result once, not in an
+            // infinite 9-minute retry loop while the phone remains offline.
+            val resumed = (context as? ComponentActivity)?.lifecycle?.currentState
+                ?.isAtLeast(Lifecycle.State.RESUMED) == true
+            if (uncertainTaskId.isNotBlank() && resumed && autoRecoveryAttemptedTaskId != uncertainTaskId) {
+                autoRecoveryAttemptedTaskId = uncertainTaskId
+                resumeGeneration()
             }
         }
 
@@ -1094,7 +1406,11 @@ private fun AiyaV3App() {
             val previousWork = if (startFreshWork) null else currentWork
             val generationId = createGenerationId()
             val requestModelMode = selectedModelMode
+            modelSelectionRequestId += 1 // Ignore a late availability check once a task has started.
             val estimatedCodingTime = estimateCodingTimeLabel(trimmedIdea, previousWork, requestModelMode)
+            // New tasks use the visible model choice; legacy pending snapshots keep their own routing fields.
+            hasLocalModelMode = true
+            appPreferences.edit().putString(PREF_MODEL_MODE, requestModelMode.id).apply()
             activeGenerationId = generationId
             generationState = GenerationState.Loading(trimmedIdea, generationId)
             selectedTab = AiyaTab.Play
@@ -1111,6 +1427,8 @@ private fun AiyaV3App() {
                         idea = trimmedIdea,
                         previousWorkId = previousWork?.id,
                         modelModeId = requestModelMode.id,
+                        buildPreferenceId = BuildPreference.Auto.id,
+                        manualModel = true,
                     ),
                 )
             }.onFailure { error ->
@@ -1396,7 +1714,10 @@ private fun AiyaV3App() {
                         onStartNewWork = { startNewWorkFromChoice() },
                         onIdeaChange = { idea = it },
                         onGenerate = { generateWork(idea) },
-                        onExample = { example -> idea = example },
+                        onExample = { example ->
+                            if (currentWork != null && continueCurrentWorkChosen) startNewWork()
+                            idea = example
+                        },
                         onVoiceStart = { startVoiceInput() },
                         onVoiceStop = { stopVoiceInput() },
                         onReplayTeacherVoice = { speakTeacher(TEACHER_WELCOME_TEXT) },
@@ -1415,6 +1736,7 @@ private fun AiyaV3App() {
                         onSelectWork = { work -> selectWork(work, AiyaTab.Play) },
                         canRollback = currentWork?.let { hasPreviousWorkVersion(context.applicationContext, it.id) } == true,
                         onRollback = { rollbackCurrentWork() },
+                        onRecover = { recoverOriginalGeneration() },
                         onRetry = { failedIdea ->
                             idea = failedIdea
                             generateWork(failedIdea)
@@ -1457,6 +1779,12 @@ private fun requestTeacherCoder(
     idea: String,
     currentWork: GeneratedWork?,
     modelMode: GenerationModelMode,
+    buildPreference: BuildPreference,
+    manualModel: Boolean,
+    recoveryOnly: Boolean = false,
+    generationBudgetMs: Long = 540_000L,
+    initialBuildJson: String = "",
+    onProgress: (GenerationProgress) -> Unit = {},
 ): GeneratedWork {
     val deviceId = getAiyaAuditDeviceId(context)
     val displayName = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -1467,6 +1795,8 @@ private fun requestTeacherCoder(
     val payload = JSONObject()
         .put("idea", idea)
         .put("modelMode", modelMode.id)
+        .put("buildPreference", buildPreference.id)
+        .put("modelSelectionMode", if (manualModel) "manual" else "auto")
         .put(
             "taskContext",
             JSONObject()
@@ -1492,6 +1822,7 @@ private fun requestTeacherCoder(
         payload.put(
             "currentApp",
             JSONObject()
+                .put("id", currentWork.id)
                 .put("title", currentWork.title)
                 .put("brief", currentWork.brief)
                 .put("html", currentWork.html)
@@ -1501,92 +1832,26 @@ private fun requestTeacherCoder(
         payload.put("currentApp", JSONObject.NULL)
     }
 
-    val connection = (URL(TEACHER_CODER_URL).openConnection() as HttpURLConnection).apply {
-        requestMethod = "POST"
-        connectTimeout = 15_000
-        readTimeout = 180_000
-        doOutput = true
-        setRequestProperty("Content-Type", "application/json; charset=utf-8")
-        setRequestProperty("Accept", "application/json")
-    }
-
-    try {
-        val requestBytes = payload.toString().toByteArray(Charsets.UTF_8)
-        connection.outputStream.use { output -> output.write(requestBytes) }
-        val status = connection.responseCode
-        val responseText = (if (status in 200..299) connection.inputStream else connection.errorStream)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { it.readText() }
-            ?: ""
-        val json = JSONObject(responseText)
-        if (status !in 200..299 || !json.optBoolean("ok", false)) {
-            val diagnostic = json.optString("diagnosticId", "")
-            val suffix = if (diagnostic.isNotBlank()) "（诊断ID：$diagnostic）" else ""
-            throw IllegalStateException((json.optString("error", "生成失败，请稍后重试。") + suffix).take(220))
-        }
-        val result = json.getJSONObject("result")
-        val html = result.optString("html")
-        if (html.isBlank()) throw IllegalStateException("AIYA 没有返回可试玩的作品。")
-        return GeneratedWork(
-            title = result.optString("title", "AIYA 作品"),
-            brief = result.optString("brief", "已生成可试玩作品。"),
-            html = html,
-            reply = json.optString("reply", "作品做好了，可以试玩。"),
-            model = result.optString("model", json.optString("model", "aiya-v3")),
-        )
-    } catch (error: Throwable) {
-        // Some Android vendors can abort a long-lived foreground HTTP socket after
-        // the server has already completed the task. Recover the audited result by
-        // client task id instead of making the user regenerate the same work.
-        Log.w(AIYA_LOG_TAG, "teacher-coder response interrupted; trying task recovery", error)
-        return recoverTeacherCoderResult(clientTaskId, deviceId) ?: throw error
-    } finally {
-        connection.disconnect()
-    }
-}
-
-private fun recoverTeacherCoderResult(clientTaskId: String, deviceId: String): GeneratedWork? {
-    val url = "$TEACHER_CODER_URL?clientTaskId=${URLEncoder.encode(clientTaskId, Charsets.UTF_8.name())}" +
+    val recoveryUrl = "$TEACHER_CODER_URL?clientTaskId=${URLEncoder.encode(clientTaskId, Charsets.UTF_8.name())}" +
         "&deviceId=${URLEncoder.encode(deviceId, Charsets.UTF_8.name())}"
-    repeat(30) { attempt ->
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 15_000
-            readTimeout = 30_000
-            setRequestProperty("Accept", "application/json")
-        }
-        try {
-            val status = connection.responseCode
-            val responseText = (if (status in 200..299) connection.inputStream else connection.errorStream)
-                ?.bufferedReader(Charsets.UTF_8)
-                ?.use { it.readText() }
-                .orEmpty()
-            val json = runCatching { JSONObject(responseText) }.getOrNull()
-            if (status == 202 || json?.optBoolean("pending", false) == true) {
-                if (attempt < 29) Thread.sleep(2_000)
-            } else if (status in 200..299 && json?.optBoolean("ok", false) == true) {
-                val result = json.optJSONObject("result") ?: return null
-                val html = result.optString("html")
-                if (html.isBlank()) return null
-                Log.i(AIYA_LOG_TAG, "teacher-coder result recovered clientTaskId=$clientTaskId")
-                return GeneratedWork(
-                    title = result.optString("title", "AIYA 作品"),
-                    brief = result.optString("brief", "已生成可试玩作品。"),
-                    html = html,
-                    reply = json.optString("reply", "作品做好了，可以试玩。"),
-                    model = result.optString("model", json.optString("model", "aiya-v3")),
-                )
-            } else {
-                return null
-            }
-        } catch (recoveryError: Throwable) {
-            Log.w(AIYA_LOG_TAG, "teacher-coder task recovery attempt ${attempt + 1} failed", recoveryError)
-            if (attempt < 29) Thread.sleep(2_000)
-        } finally {
-            connection.disconnect()
-        }
-    }
-    return null
+    val json = awaitRecoverableGeneration(
+        submit = { exchangeGenerationHttp(TEACHER_CODER_URL, payload.toString()) },
+        poll = { remaining -> exchangeGenerationHttp(recoveryUrl, remainingMs = remaining) },
+        onProgress = onProgress,
+        resumeOnly = recoveryOnly,
+        timeoutMs = generationBudgetMs,
+        initialProgress = GenerationProgress(if (recoveryOnly) "正在取回原任务结果，不会重新生成。" else "正在提交需求。", initialBuildJson),
+    )
+    val result = json.getJSONObject("result")
+    return GeneratedWork(
+        id = result.optString("id", ""),
+        title = result.optString("title", "AIYA 作品"),
+        brief = result.optString("brief", "已生成可试玩作品。"),
+        html = result.getString("html"),
+        reply = json.optString("reply", "作品做好了，可以试玩。"),
+        model = result.optString("model", json.optString("model", "aiya-v3")),
+        buildExecutionJson = json.optJSONObject("build")?.toString().orEmpty(),
+    )
 }
 
 private fun getAiyaAuditDeviceId(context: Context): String {
@@ -1600,6 +1865,26 @@ private fun getAiyaAuditDeviceId(context: Context): String {
     val created = "install-${UUID.randomUUID()}"
     preferences.edit().putString(PREF_AUDIT_DEVICE_ID, created).apply()
     return created
+}
+
+private fun isFusionConfiguredOnServer(): Boolean {
+    val connection = (URL("$AIYA_ORIGIN/api/create-theatre/model-selection").openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        connectTimeout = 8_000
+        readTimeout = 8_000
+        useCaches = false
+    }
+    try {
+        check(connection.responseCode == HttpURLConnection.HTTP_OK) { "模型状态检查失败" }
+        val json = JSONObject(connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() })
+        val options = json.optJSONArray("options") ?: return false
+        return json.optBoolean("ok") && (0 until options.length()).any { index ->
+            val option = options.optJSONObject(index)
+            option?.optString("mode") == "fusion" && option.optString("model") == "fusion-max-2.0" && option.optBoolean("configured")
+        }
+    } finally {
+        connection.disconnect()
+    }
 }
 
 private fun fetchClassroomRuntimeSettings(): ClassroomRuntimeSettings {
@@ -1704,6 +1989,8 @@ private fun writeBackgroundGenerationRequest(context: Context, request: Backgrou
         .put("idea", request.idea)
         .put("previousWorkId", request.previousWorkId ?: JSONObject.NULL)
         .put("modelModeId", request.modelModeId)
+        .put("buildPreferenceId", request.buildPreferenceId)
+        .put("manualModel", request.manualModel)
     saveWorkHtmlEncrypted(context, BACKGROUND_GENERATION_REQUEST_FILE_ID, json.toString())
 }
 
@@ -1718,6 +2005,8 @@ private fun readBackgroundGenerationRequest(context: Context): BackgroundGenerat
             idea = idea,
             previousWorkId = json.optString("previousWorkId").trim().ifBlank { null },
             modelModeId = json.optString("modelModeId", GenerationModelMode.Default.id),
+            buildPreferenceId = json.optString("buildPreferenceId", "auto"),
+            manualModel = json.optBoolean("manualModel", true),
         )
     }.getOrNull()
 }
@@ -1733,6 +2022,8 @@ private fun writeBackgroundGenerationSnapshot(context: Context, snapshot: Backgr
         .put("status", snapshot.status)
         .put("message", snapshot.message)
         .put("completedAt", snapshot.completedAt)
+        .put("startedAt", snapshot.startedAt)
+        .put("buildExecutionJson", snapshot.buildExecutionJson)
     saveWorkHtmlEncrypted(context, BACKGROUND_GENERATION_SNAPSHOT_FILE_ID, json.toString())
 }
 
@@ -1747,6 +2038,8 @@ private fun readBackgroundGenerationSnapshot(context: Context): BackgroundGenera
             status = json.optString("status"),
             message = json.optString("message"),
             completedAt = json.optLong("completedAt", 0L),
+            startedAt = json.optLong("startedAt", System.currentTimeMillis()),
+            buildExecutionJson = json.optString("buildExecutionJson", ""),
         )
     }.getOrNull()
 }
@@ -1870,6 +2163,7 @@ private fun savePreviousWorkVersion(context: Context, work: GeneratedWork) {
         .put("brief", work.brief)
         .put("reply", work.reply)
         .put("model", work.model)
+        .put("buildExecutionJson", work.buildExecutionJson)
         .put("sourceIdea", work.sourceIdea)
         .put("createdAt", work.createdAt)
         .put("updatedAt", work.updatedAt)
@@ -1896,6 +2190,7 @@ private fun readPreviousWorkVersion(context: Context, workId: String): Generated
             html = html,
             reply = json.optString("reply", "作品已回退到上一版。").take(1200),
             model = json.optString("model", "aiya-v3").take(64),
+        buildExecutionJson = json.optString("buildExecutionJson", ""),
             sourceIdea = json.optString("sourceIdea", "").take(1_200),
             createdAt = json.optLong("createdAt", System.currentTimeMillis()),
             updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
@@ -1960,6 +2255,7 @@ private fun parseGeneratedWork(context: Context, json: JSONObject): GeneratedWor
         html = html,
         reply = json.optString("reply", "作品做好了，可以试玩。").take(1200),
         model = json.optString("model", "aiya-v3").take(64),
+        buildExecutionJson = json.optString("buildExecutionJson", ""),
         sourceIdea = json.optString("sourceIdea", "").take(1_200),
         createdAt = createdAt,
         updatedAt = savedAt,
@@ -1986,6 +2282,7 @@ private fun workToJson(context: Context, work: GeneratedWork): JSONObject {
         .put("html", "")
         .put("reply", work.reply)
         .put("model", work.model)
+        .put("buildExecutionJson", work.buildExecutionJson)
         .put("sourceIdea", work.sourceIdea)
         .put("createdAt", work.createdAt)
         .put("updatedAt", work.updatedAt)
@@ -2811,6 +3108,16 @@ private class AndroidTeacherVoiceController(
 
     private fun downloadTeacherVoiceToCache(text: String, currentRun: Int): File {
         val isWelcome = text == TEACHER_WELCOME_TEXT
+        val cacheKey = sha256Hex("teacher-voice-v1|$DEFAULT_TEACHER_VOICE|$text").take(40)
+        val file = File(context.cacheDir, "aiya-teacher-voice-$cacheKey.mp3")
+        if (file.isFile && file.length() >= 512L) {
+            file.setLastModified(System.currentTimeMillis())
+            Log.i(
+                AIYA_LOG_TAG,
+                "teacher-voice local-cache-hit run=$currentRun bytes=${file.length()} welcome=$isWelcome",
+            )
+            return file
+        }
         val url = if (isWelcome) {
             TEACHER_WELCOME_AUDIO_URL
         } else {
@@ -2839,12 +3146,27 @@ private class AndroidTeacherVoiceController(
             if (bytes.size < 512) {
                 throw IllegalStateException("audio too small: ${bytes.size} bytes")
             }
-            val file = File(context.cacheDir, "aiya-teacher-voice-$currentRun.mp3")
-            file.writeBytes(bytes)
+            val temporary = File(context.cacheDir, "${file.name}.$currentRun.tmp")
+            temporary.writeBytes(bytes)
+            if (!temporary.renameTo(file)) {
+                file.writeBytes(bytes)
+                temporary.delete()
+            }
+            trimTeacherVoiceCache()
             return file
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun trimTeacherVoiceCache(maxFiles: Int = 96) {
+        val files = context.cacheDir.listFiles { candidate ->
+            candidate.isFile && candidate.name.startsWith("aiya-teacher-voice-") && candidate.extension == "mp3"
+        }.orEmpty()
+        if (files.size <= maxFiles) return
+        files.sortedBy { it.lastModified() }
+            .take(files.size - maxFiles)
+            .forEach { oldFile -> runCatching { oldFile.delete() } }
     }
 
     private fun playCachedAudio(file: File, currentRun: Int) {
@@ -3077,6 +3399,7 @@ private fun CreateTab(
     val newWorkRequest = hasCurrentWork && isExplicitNewWorkRequest(idea)
     var showModelSelector by remember { mutableStateOf(false) }
     var showNameEditor by remember { mutableStateOf(false) }
+    var showPromptExamples by remember { mutableStateOf(false) }
     var nameDraft by remember(displayName) { mutableStateOf(displayName) }
     fun hideKeyboard() {
         focusManager.clearFocus()
@@ -3107,9 +3430,9 @@ private fun CreateTab(
     if (showModelSelector) {
         AlertDialog(
             onDismissRequest = { showModelSelector = false },
-            title = { Text("选择模型配置", fontWeight = FontWeight.Bold) },
+            title = { Text("选择模型", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     GenerationModelMode.entries.forEach { mode ->
                         val selected = mode == selectedModelMode
                         Surface(
@@ -3126,11 +3449,13 @@ private fun CreateTab(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Text(mode.label, color = AiyaInk, fontWeight = FontWeight.Bold)
+                                    Text(mode.label, modifier = Modifier.weight(1f).padding(end = 8.dp), color = AiyaInk, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 26.sp)
                                     if (selected) Text("当前", color = AiyaGreen, fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(mode.description, color = Color(0xFF5E706A), fontSize = 13.sp, lineHeight = 18.sp)
+                                Text(mode.modelId, color = Color(0xFF52685E), fontSize = 16.sp, lineHeight = 24.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(mode.description, color = Color(0xFF5E706A), fontSize = 16.sp, lineHeight = 24.sp)
                             }
                         }
                     }
@@ -3167,6 +3492,20 @@ private fun CreateTab(
         )
     }
 
+    if (showPromptExamples) {
+        GoldenKeyDialog(
+            starterExamples = promptExamples,
+            hasCurrentWork = hasCurrentWork,
+            onChoose = { example ->
+                hideKeyboard()
+                onExample(example.prompt)
+                showPromptExamples = false
+                Toast.makeText(context, "已填入「${example.title}」，可修改后确认提交", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showPromptExamples = false },
+        )
+    }
+
         ScreenShell(
         eyebrow = "AIYA",
         title = if (newWorkRequest) "新建一个作品" else if (hasCurrentWork) "继续说想改哪里" else "你想做什么？",
@@ -3188,6 +3527,29 @@ private fun CreateTab(
             teacherProfile = teacherProfile,
             onReplay = onReplayTeacherVoice,
             onStop = onStopTeacherVoice,
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        Text("模型选择", fontSize = 16.sp, color = AiyaInk, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GenerationModelMode.entries.forEach { mode ->
+                Surface(
+                    onClick = { onModelModeSelected(mode) },
+                    enabled = !isGenerating,
+                    modifier = Modifier.weight(1f).heightIn(min = 88.dp).fillMaxHeight(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (mode == selectedModelMode) Color(0xFFDFFFF3) else Color(0xFFF0F5F3),
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        Text(mode.label, fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center, color = AiyaInk, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "当前：${selectedModelMode.label}\n${selectedModelMode.modelId} · 下一次任务生效",
+            fontSize = 16.sp, lineHeight = 26.sp, color = Color(0xFF52685E),
         )
         Spacer(modifier = Modifier.height(14.dp))
         OutlinedTextField(
@@ -3262,12 +3624,14 @@ private fun CreateTab(
                 Text("收起键盘", fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(modifier = Modifier.height(18.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ExampleChip(text = "贪吃蛇", enabled = !isGenerating) { onExample("做一个会穿墙的贪吃蛇，手机上要有方向按钮") }
-            ExampleChip(text = "打地鼠", enabled = !isGenerating) { onExample("做一个打地鼠游戏，有分数和倒计时") }
-            ExampleChip(text = "计算器", enabled = !isGenerating) { onExample("做一个简洁的大按钮计算器") }
-        }
+        Spacer(modifier = Modifier.height(12.dp))
+        PromptExamplesButton(
+            enabled = !isGenerating,
+            onClick = {
+                hideKeyboard()
+                showPromptExamples = true
+            },
+        )
         Spacer(modifier = Modifier.height(18.dp))
         VoiceInputPad(
             state = voiceUiState,
@@ -3384,14 +3748,40 @@ private fun VoiceInputPad(
 }
 
 @Composable
-private fun ExampleChip(text: String, enabled: Boolean, onClick: () -> Unit) {
-    TextButton(
+private fun PromptExamplesButton(enabled: Boolean, onClick: () -> Unit) {
+    Surface(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(999.dp),
-        colors = ButtonDefaults.textButtonColors(contentColor = AiyaGreen),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = if (enabled) Color(0xFFE9FBF4) else Color(0xFFF2F5F4),
     ) {
-        Text(text, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (enabled) Color.White else Color(0xFFE6EBE9)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("钥", color = AiyaGreen, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("金钥匙", color = AiyaInk, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    "进阶样板 · 也可选择入门示例",
+                    color = Color(0xFF65756F),
+                    fontSize = 18.sp,
+                    lineHeight = 30.sp,
+                )
+            }
+            Text("选择 ›", color = AiyaGreen, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -3405,14 +3795,15 @@ private fun PlayTab(
     onSelectWork: (GeneratedWork) -> Unit,
     canRollback: Boolean,
     onRollback: () -> Unit,
+    onRecover: () -> Unit,
     onRetry: (String) -> Unit,
 ) {
     when (generationState) {
         is GenerationState.Loading -> LoadingPlayTab(
-            idea = generationState.idea,
+            loading = generationState,
             onCancelGeneration = onCancelGeneration,
         )
-        is GenerationState.Failed -> FailedPlayTab(generationState, onBackToCreate, onRetry)
+        is GenerationState.Failed -> FailedPlayTab(generationState, onBackToCreate, onRetry, onRecover)
         else -> WorkPlayTab(
             work = work,
             workLibrary = workLibrary,
@@ -3426,9 +3817,18 @@ private fun PlayTab(
 
 @Composable
 private fun LoadingPlayTab(
-    idea: String,
+    loading: GenerationState.Loading,
     onCancelGeneration: () -> Unit,
 ) {
+    var elapsedSeconds by remember(loading.generationId) { mutableStateOf(0L) }
+    var showTrace by remember { mutableStateOf(false) }
+    LaunchedEffect(loading.generationId, loading.startedAt) {
+        while (true) {
+            elapsedSeconds = ((System.currentTimeMillis() - loading.startedAt) / 1000).coerceAtLeast(0)
+            delay(1000)
+        }
+    }
+    if (showTrace) GenerationTraceDialog(loading.buildExecutionJson) { showTrace = false }
     ScreenShell(
         eyebrow = "试玩",
         title = "AIYA 正在制作",
@@ -3437,7 +3837,7 @@ private fun LoadingPlayTab(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(360.dp)
+                .heightIn(min = 360.dp)
                 .clip(RoundedCornerShape(32.dp))
                 .background(
                     Brush.verticalGradient(
@@ -3446,7 +3846,7 @@ private fun LoadingPlayTab(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(modifier = Modifier.padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
                         .size(72.dp)
@@ -3460,7 +3860,8 @@ private fun LoadingPlayTab(
                 Text("老师正在制作", color = AiyaInk, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "正在把你的想法变成可以试玩的作品",
+                    "已等待 ${elapsedSeconds} 秒 · ${loading.message}",
+                    fontSize = 18.sp, lineHeight = 30.sp,
                     color = Color(0xFF5E706A),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 24.dp),
@@ -3472,7 +3873,8 @@ private fun LoadingPlayTab(
                     color = Color.White.copy(alpha = 0.86f),
                 ) {
                     Text(
-                        text = idea,
+                        text = loading.idea,
+                        fontSize = 18.sp, lineHeight = 30.sp,
                         color = Color(0xFF3B6D62),
                         textAlign = TextAlign.Center,
                         maxLines = 3,
@@ -3480,6 +3882,9 @@ private fun LoadingPlayTab(
                     )
                 }
             }
+        }
+        TextButton(onClick = { showTrace = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("查看任务轨迹", fontSize = 16.sp, color = AiyaGreen)
         }
         Spacer(modifier = Modifier.height(18.dp))
         Button(
@@ -3493,14 +3898,14 @@ private fun LoadingPlayTab(
             ),
             onClick = onCancelGeneration,
         ) {
-            Text("撤销生成，回到创作", fontWeight = FontWeight.Bold)
+            Text("撤销生成，回到创作", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = "撤销后，后台迟到的生成结果不会覆盖当前作品。",
             color = Color(0xFF72827C),
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
+            fontSize = 18.sp,
+            lineHeight = 30.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -3512,11 +3917,15 @@ private fun FailedPlayTab(
     failed: GenerationState.Failed,
     onBackToCreate: () -> Unit,
     onRetry: (String) -> Unit,
+    onRecover: () -> Unit,
 ) {
+    val recoverable = failed.recoveryTaskId.isNotBlank()
+    var showTrace by remember { mutableStateOf(false) }
+    if (showTrace) GenerationTraceDialog(failed.buildExecutionJson) { showTrace = false }
     ScreenShell(
         eyebrow = "试玩",
-        title = "这次没做好",
-        subtitle = "可以直接重试，也可以回到创作页换个说法。",
+        title = if (recoverable) "结果尚未取回" else "这次没做好",
+        subtitle = if (recoverable) "原任务可能已经完成。恢复只查询结果，不重复生成。" else "可以直接重试，也可以回到创作页换个说法。",
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -3528,9 +3937,12 @@ private fun FailedPlayTab(
                 text = failed.message,
                 modifier = Modifier.padding(20.dp),
                 color = Color(0xFF5E332E),
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
+                fontSize = 18.sp,
+                lineHeight = 30.sp,
             )
+        }
+        TextButton(onClick = { showTrace = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("查看任务轨迹", fontSize = 16.sp, color = AiyaGreen)
         }
         Spacer(modifier = Modifier.height(22.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -3538,14 +3950,14 @@ private fun FailedPlayTab(
                 modifier = Modifier.weight(1f).height(56.dp),
                 shape = RoundedCornerShape(999.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AiyaGreen),
-                onClick = { onRetry(failed.lastIdea) },
-            ) { Text("再试一次", fontWeight = FontWeight.Bold) }
+                onClick = { if (recoverable) onRecover() else onRetry(failed.lastIdea) },
+            ) { Text(if (recoverable) "恢复原任务" else "再试一次", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
             Button(
                 modifier = Modifier.weight(1f).height(56.dp),
                 shape = RoundedCornerShape(999.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F2A23)),
                 onClick = onBackToCreate,
-            ) { Text("换个说法", fontWeight = FontWeight.Bold) }
+            ) { Text("换个说法", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }
@@ -3592,26 +4004,17 @@ private fun WorkPlayTab(
         return
     }
 
+    var showTrace by remember(work.id, work.buildExecutionJson) { mutableStateOf(false) }
+    if (showTrace) GenerationTraceDialog(work.buildExecutionJson) { showTrace = false }
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White),
+        modifier = Modifier.fillMaxSize().background(Color.White),
     ) {
-        if (canRollback) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFF3FFFA),
-                shadowElevation = 1.dp,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("已保存上一版", color = Color(0xFF4F7468), fontSize = 12.sp, modifier = Modifier.weight(1f))
-                    TextButton(onClick = onRollback) {
-                        Text("回退上一版", color = AiyaGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
+            if (canRollback) TextButton(onClick = onRollback, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("回退上一版", fontSize = 16.sp, color = AiyaGreen)
+            }
+            TextButton(onClick = { showTrace = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("任务轨迹", fontSize = 16.sp, color = AiyaGreen)
             }
         }
         if (workLibrary.size > 1) {
@@ -3850,11 +4253,24 @@ private fun EmptyPlayBox() {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun GeneratedWorkWebView(
+internal fun GeneratedWorkWebView(
     modifier: Modifier = Modifier.fillMaxSize(),
     title: String,
     html: String,
 ) {
+    val preview = remember(html) { prepareGeneratedPreview(html, ::prepareGeneratedHtmlForWebView) }
+    val preparedHtml = preview.getOrNull()
+    if (preparedHtml == null) {
+        Column(
+            modifier = modifier.background(Color.White).verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("这个作品暂时无法试玩", color = AiyaInk, fontSize = 22.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+            Text(preview.exceptionOrNull()?.message ?: "作品加载失败，请返回创作页修改。", color = Color(0xFF7D3535), fontSize = 18.sp, lineHeight = 32.sp)
+            Text("作品已保留。可以切换其他项目，或点击左下角「创作」继续修改。", color = Color(0xFF52685E), fontSize = 18.sp, lineHeight = 32.sp)
+        }
+        return
+    }
     val context = LocalContext.current
     var pendingWebPermissionRequest by remember { mutableStateOf<PendingGeneratedPermissionRequest?>(null) }
     val mediaPermissionLauncher = rememberLauncherForActivityResult(
@@ -3974,7 +4390,7 @@ private fun GeneratedWorkWebView(
             if (state?.htmlHash != hash) {
                 webView.tag = WebViewRuntimeState(htmlHash = hash, bridge = bridge)
                 bridge.recordNativeEvent("webview-load-start", JSONObject().put("htmlLength", html.length))
-                webView.loadDataWithBaseURL("https://aiya.shenliu.cc/generated/", prepareGeneratedHtmlForWebView(html), "text/html", "UTF-8", null)
+                webView.loadDataWithBaseURL("https://aiya.shenliu.cc/generated/", preparedHtml, "text/html", "UTF-8", null)
             }
         },
         onRelease = { webView ->
@@ -4000,7 +4416,6 @@ private data class PendingGeneratedPermissionRequest(
 )
 
 private fun prepareGeneratedHtmlForWebView(source: String): String {
-    enforceWebViewSafety(source)
     val viewportMeta = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">"
     val fitStyle = """
 <style id="aiya-v3-mobile-webview-fit">
@@ -4689,28 +5104,6 @@ private val recordRateLimiter = AiyaRecordRateLimiter(
     burstLimit = RECORD_BURST_LIMIT,
     perMinuteLimit = RECORD_TOKEN_BUCKET_PER_MIN,
 )
-
-private fun enforceWebViewSafety(html: String) {
-    if (html.length < MIN_HTML_BYTES || html.length > MAX_HTML_BYTES) {
-        throw IllegalStateException("生成作品太小或太大，请重试。")
-    }
-    if (!looksLikeHtmlDocument(html)) {
-        throw IllegalStateException("生成作品不是有效的 HTML，请重试。")
-    }
-    val forbidden = listOf(
-        Regex("<script\\b[^>]*\\bsrc\\s*=", RegexOption.IGNORE_CASE),
-        Regex("<link\\b[^>]*\\bhref\\s*=", RegexOption.IGNORE_CASE),
-        Regex("<iframe\\b[^>]*\\bsrc\\s*=", RegexOption.IGNORE_CASE),
-        Regex("\\b(?:https?:)?//", RegexOption.IGNORE_CASE),
-        Regex("\\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\\s*\\(", RegexOption.IGNORE_CASE),
-        Regex("\\b(?:localStorage|sessionStorage|indexedDB|document\\.cookie)\\b", RegexOption.IGNORE_CASE),
-    )
-    for (pattern in forbidden) {
-        if (pattern.containsMatchIn(html)) {
-            throw IllegalStateException("生成作品包含被禁用的资源或网络调用，请重试。")
-        }
-    }
-}
 
 private class AiyaRecordRateLimiter(
     private val minIntervalMs: Long,

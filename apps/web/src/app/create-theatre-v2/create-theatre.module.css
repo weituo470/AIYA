@@ -224,7 +224,7 @@
   min-height: 22px;
   margin: -12px 4px 12px;
   color: #68736f;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
   letter-spacing: 0.01em;
 }
@@ -1329,7 +1329,7 @@
   .creatorCredit {
     justify-content: center;
     margin: 0 0 8px;
-    font-size: 11px;
+    font-size: 14px;
   }
 
   .theatre,
@@ -2122,18 +2122,20 @@
 }
 
 .chatBubble span {
-  color: #777;
-  font-size: 11px;
+  --dialogue-font-meta: .875rem;
+  color: #52685e;
+  font-size: var(--dialogue-font-meta);
   font-weight: 600;
 }
 
 .chatBubble p {
+  --dialogue-font-body: 1.125rem;
   margin: 0;
   padding: 13px 15px;
   border-radius: 18px;
   white-space: pre-line;
   line-height: 1.78;
-  font-size: 13.5px;
+  font-size: var(--dialogue-font-body);
 }
 
 .chatTeacher {

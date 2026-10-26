@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
+import { BuildExecutionPanel } from '../../_shared/BuildExecutionPanel';
+import type { BuildExecution } from '../../../lib/build-contract';
 
-type ModelMode = 'default' | 'fast' | 'quality';
+type ModelMode = 'default' | 'fast' | 'quality' | 'fusion';
 type HermesProfileForm = {
   baseUrl: string;
   model: string;
@@ -137,6 +139,7 @@ type AdminTask = {
   conversation?: AdminTaskConversationEntry[];
   interactionEvents?: unknown[];
   diagnosticEvents?: unknown[];
+  build?: BuildExecution | null;
 };
 type AdminPayload = {
   ok: boolean;
@@ -174,12 +177,14 @@ const defaultSettings: ClassroomSettings = {
     default: emptyHermesProfile(),
     fast: emptyHermesProfile(),
     quality: emptyHermesProfile(),
+    fusion: emptyHermesProfile(),
   },
 };
 const modelOptions: Array<{ id: ModelMode; label: string; note: string }> = [
   { id: 'default', label: '默认稳定', note: '日常课堂主模型，优先保证稳定性。' },
   { id: 'fast', label: '速度优先', note: '快速试错和简单应用生成。' },
   { id: 'quality', label: '质量优先', note: '复杂游戏、交互和精修任务。' },
+  { id: 'fusion', label: 'Fusion Max 2.0', note: '独立企业接口；用户手动选择，不加入默认智能选路。' },
 ];
 const formatTime = (value?: string) => {
   if (!value) return '—';
@@ -240,6 +245,7 @@ const normalizeSettings = (
       default: normalizeProfile(settings?.hermesProfiles?.default),
       fast: normalizeProfile(settings?.hermesProfiles?.fast),
       quality: normalizeProfile(settings?.hermesProfiles?.quality),
+      fusion: normalizeProfile(settings?.hermesProfiles?.fusion),
     },
     updatedAt: settings?.updatedAt,
   };
@@ -247,7 +253,7 @@ const normalizeSettings = (
   if (runtimeModel && !effectiveRuntimeModels[runtimeModel.modelMode]) {
     effectiveRuntimeModels[runtimeModel.modelMode] = runtimeModel;
   }
-  (['default', 'fast', 'quality'] as ModelMode[]).forEach((mode) => {
+  (['default', 'fast', 'quality', 'fusion'] as ModelMode[]).forEach((mode) => {
     const profile = normalized.hermesProfiles[mode];
     const effective = effectiveRuntimeModels[mode];
     if (effective && !profile.baseUrl && !profile.model) {
@@ -1142,6 +1148,7 @@ export default function CreateTheatreAdminPage() {
                         <div><dt>总耗时</dt><dd>{formatDuration(detail.durationMs)}</dd></div>
                       </dl>
 
+                      {detail.build && <BuildExecutionPanel build={detail.build} />}
                       <section className={styles.taskConversationPanel}>
                         <div className={styles.taskProcessHeader}>
                           <div>

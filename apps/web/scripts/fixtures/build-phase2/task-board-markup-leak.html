@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>离线任务看板</title>
+<style>
+/* 全局样式：让页面在手机上看起来干净、舒适 */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f2f4f8;
+  color: #1f2937;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+/* 顶部标题栏 */
+header {
+  background: linear-gradient(135deg, #4f7cff, #6a5cff);
+  color: #fff;
+  padding: 18px 16px 14px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(79, 124, 255, 0.25);
+}
+header h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+header p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  opacity: 0.85;
+}
+/* 页面切换标签 */
+nav.tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+nav.tabs button {
+  flex: 1;
+  padding: 14px 0;
+  font-size: 15px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  position: relative;
+  font-weight: 500;
+}
+nav.tabs button.active {
+  color: #4f7cff;
+  font-weight: 700;
+}
+nav.tabs button.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 3px;
+  border-radius: 3px;
+  background: #4f7cff;
+}
+/* 主体内容区 */
+main {
+  flex: 1;
+  padding: 14px;
+  overflow-y: auto;
+}
+.page {
+  display: none;
+}
+.page.active {
+  display: block;
+}
+/* 输入区 */
+.input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.input-row input {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 15px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+}
+.input-row input:focus {
+  border-color: #4f7cff;
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.15);
+}
+.input-row button {
+  padding: 0 18px;
+  font-size: 15px;
+  border: none;
+  border-radius: 10px;
+  background: #4f7cff;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+}
+.input-row button:active {
+  background: #3b63d9;
+}
+/* 筛选按钮组 */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.filters button {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  min-height: 44px;
+}
+.filters button.active {
+  background: #e8efff;
+  border-color: #4f7cff;
+  color: #4f7cff;
+  font-weight: 600;
+}
+/* 任务列表 */
+ul.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+ul.task-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+ul.task-list li.done .task-title {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+.task-title {
+  flex: 1;
+  font-size: 15px;
+  word-break: break-all;
+}
+.task-actions {
+  display: flex;
+  gap: 6px;
+}
+.task-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  min-height: 36px;
+}
+.btn-done {
+  background: #e6f7ec;
+  color: #16a34a;
+}
+.btn-done:active {
+  background: #d1f0dc;
+}
+.btn-del {
+  background: #fdeaea;
+  color: #dc2626;
+}
+.btn-del:active {
+  background: #fbd5d5;
+}
+/* 空状态提示 */
+.empty-tip {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+  padding: 40px 0;
+}
+/* 统计卡片 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.stat-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.stat-card .num {
+  font-size: 34px;
+  font-weight: 700;
+  color: #4f7cff;
+}
+.stat-card .label {
+  margin-top: 6px;
+  font-size: 14px;
+  color: #6b7280;
+}
+.stat-card.todo .num { color: #f59e0b; }
+.stat-card.done .num { color: #16a34a; }
+/* 底部提示 */
+footer {
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  padding: 10px;
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部标题 -->
+<header>
+  <h1>离线任务看板</h1>
+  <p>数据仅保存在当前运行期间</p>
+</header>
+
+<!-- 页面切换标签 -->
+nav.tabs
+  <button id="tabTask" class="active" type="button">任务</button>
+  <button id="tabStats" type="button">统计</button>
+</nav>
+
+<!-- 主体内容 -->
+<main>
+  <!-- 任务页 -->
+  <section id="pageTask" class="page active">
+    <div class="input-row">
+      <input id="taskInput" type="text" placeholder="输入任务标题" maxlength="60">
+      <button id="addBtn" type="button">添加</button>
+    </div>
+    <div class="filters">
+      <button id="filterAll" class="active" type="button">全部</button>
+      <button id="filterTodo" type="button">待办</button>
+      <button id="filterDone" type="button">已完成</button>
+    </div>
+    <ul id="taskList" class="task-list"></ul>
+    <div id="emptyTip" class="empty-tip">暂无任务，先添加一个吧</div>
+  </section>
+
+  <!-- 统计页 -->
+  <section id="pageStats" class="page">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="num" id="statTotal">0</div>
+        <div class="label">总数</div>
+      </div>
+      <div class="stat-card todo">
+        <div class="num" id="statTodo">0</div>
+        <div class="label">待办数</div>
+      </div>
+      <div class="stat-card done">
+        <div class="num" id="statDone">0</div>
+        <div class="label">已完成数</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>离线任务看板 · 刷新后数据清空</footer>
+
+<script>
+/* ============================================================
+   离线任务看板 - 原生 JavaScript 实现
+   所有数据只保存在内存变量 tasks 中，不使用任何存储或网络。
+   ============================================================ */
+
+/* 任务数据数组：每个任务是一个对象 { id, title, done } */
+var tasks = [];
+
+/* 当前筛选状态：'all' 全部 / 'todo' 待办 / 'done' 已完成 */
+var currentFilter = 'all';
+
+/* 自增 id，用于区分每个任务 */
+var nextId = 1;
+
+/* 获取页面元素引用，方便后续操作 */
+var taskInput = document.getElementById('taskInput');
+var addBtn = document.getElementById('addBtn');
+var taskList = document.getElementById('taskList');
+var emptyTip = document.getElementById('emptyTip');
+var tabTask = document.getElementById('tabTask');
+var tabStats = document.getElementById('tabStats');
+var pageTask = document.getElementById('pageTask');
+var pageStats = document.getElementById('pageStats');
+var filterAll = document.getElementById('filterAll');
+var filterTodo = document.getElementById('filterTodo');
+var filterDone = document.getElementById('filterDone');
+var statTotal = document.getElementById('statTotal');
+var statTodo = document.getElementById('statTodo');
+var statDone = document.getElementById('statDone');
+
+/* 轻量设备判断：触摸设备或窄屏时启用触屏优化 */
+var isTouchDevice = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 700;
+
+/* 轻量震动反馈：仅在支持且需要时调用，短促不重复 */
+function vibrate(pattern) {
+  if ('vibrate' in navigator) {
+    try { navigator.vibrate(pattern); } catch (e) { /* 忽略不支持的情况 */ }
+  }
+}
+
+/* 添加任务：读取输入框内容，创建任务对象并刷新界面 */
+function addTask() {
+  var title = taskInput.value.trim();
+  if (!title) {
+    /* 输入为空时给出提示，不添加 */
+    taskInput.focus();
+    return;
+  }
+  tasks.push({ id: nextId, title: title, done: false });
+  nextId = nextId + 1;
+  taskInput.value = '';
+  taskInput.focus();
+  vibrate(15);
+  render();
+}
+
+/* 切换任务完成状态 */
+function toggleTask(id) {
+  for (var i = 0; i < tasks.length; i++) {
+    if (tasks[i].id === id) {
+      tasks[i].done = !tasks[i].done;
+      break;
+    }
+  }
+  vibrate(15);
+  render();
+}
+
+/* 删除任务 */
+function deleteTask(id) {
+  var newTasks = [];
+  for (var i = 0; i < tasks.length; i++) {
+    if (tasks[i].id !== id) {
+      newTasks.push(tasks[i]);
+    }
+  }
+  tasks = newTasks;
+  vibrate(20);
+  render();
+}
+
+/* 根据当前筛选返回要显示的任务列表 */
+function getVisibleTasks() {
+  var result = [];
+  for (var i = 0; i < tasks.length; i++) {
+    var t = tasks[i];
+    if (currentFilter === 'all') {
+      result.push(t);
+    } else if (currentFilter === 'todo' && !t.done) {
+      result.push(t);
+    } else if (currentFilter === 'done' && t.done) {
+      result.push(t);
+    }
+  }
+  return result;
+}
+
+/* 渲染任务列表和统计数字 */
+function render() {
+  /* 清空列表 */
+  taskList.innerHTML = '';
+
+  var visible = getVisibleTasks();
+
+  /* 逐个创建列表项 */
+  for (var i = 0; i < visible.length; i++) {
+    var t = visible[i];
+    var li = document.createElement('li');
+    if (t.done) {
+      li.className = 'done';
+    }
+
+    /* 任务标题 */
+    var span = document.createElement('span');
+    span.className = 'task-title';
+    span.textContent = t.title;
+    li.appendChild(span);
+
+    /* 操作按钮容器 */
+    var actions = document.createElement('div');
+    actions.className = 'task-actions';
+
+    /* 完成 / 取消完成 按钮 */
+    var doneBtn = document.createElement('button');
+    doneBtn.type = 'button';
+    doneBtn.className = 'btn-done';
+    doneBtn.textContent = t.done ? '取消完成' : '完成';
+    /* 使用闭包保存当前任务 id */
+    (function (taskId) {
+      doneBtn.addEventListener('click', function () { toggleTask(taskId); });
+    })(t.id);
+    actions.appendChild(doneBtn);
+
+    /* 删除按钮 */
+    var delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-del';
+    delBtn.textContent = '删除';
+    (function (taskId) {
+      delBtn.addEventListener('click', function () { deleteTask(taskId); });
+    })(t.id);
+    actions.appendChild(delBtn);
+
+    li.appendChild(actions);
+    taskList.appendChild(li);
+  }
+
+  /* 空状态提示 */
+  if (visible.length === 0) {
+    emptyTip.style.display = 'block';
+    if (tasks.length === 0) {
+      emptyTip.textContent = '暂无任务，先添加一个吧';
+    } else if (currentFilter === 'todo') {
+      emptyTip.textContent = '没有待办任务';
+    } else if (currentFilter === 'done') {
+      emptyTip.textContent = '没有已完成任务';
+    } else {
+      emptyTip.textContent = '暂无任务';
+    }
+  } else {
+    emptyTip.style.display = 'none';
+  }
+
+  /* 更新统计数字 */
+  var total = tasks.length;
+  var doneCount = 0;
+  for (var j = 0; j < tasks.length; j++) {
+    if (tasks[j].done) {
+      doneCount = doneCount + 1;
+    }
+  }
+  statTotal.textContent = total;
+  statTodo.textContent = total - doneCount;
+  statDone.textContent = doneCount;
+}
+
+/* 切换页面：任务页或统计页 */
+function switchPage(page) {
+  if (page === 'task') {
+    pageTask.classList.add('active');
+    pageStats.classList.remove('active');
+    tabTask.classList.add('active');
+    tabStats.classList.remove('active');
+  } else {
+    pageStats.classList.add('active');
+    pageTask.classList.remove('active');
+    tabStats.classList.add('active');
+    tabTask.classList.remove('active');
+  }
+}
+
+/* 切换筛选状态 */
+function setFilter(filter) {
+  currentFilter = filter;
+  filterAll.classList.remove('active');
+  filterTodo.classList.remove('active');
+  filterDone.classList.remove('active');
+  if (filter === 'all') { filterAll.classList.add('active'); }
+  if (filter === 'todo') { filterTodo.classList.add('active'); }
+  if (filter === 'done') { filterDone.classList.add('active'); }
+  render();
+}
+
+/* ============ 事件绑定 ============ */
+
+/* 点击“添加”按钮 */
+addBtn.addEventListener('click', addTask);
+
+/* 在输入框按回车也能添加 */
+taskInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addTask();
+  }
+});
+
+/* 页面切换 */
+tabTask.addEventListener('click', function () { switchPage('task'); });
+tabStats.addEventListener('click', function () { switchPage('stats'); });
+
+/* 筛选按钮 */
+filterAll.addEventListener('click', function () { setFilter('all'); });
+filterTodo.addEventListener('click', function () { setFilter('todo'); });
+filterDone.addEventListener('click', function () { setFilter('done'); });
+
+/* 首次渲染 */
+render();
+</script>
+</body>
+</html>

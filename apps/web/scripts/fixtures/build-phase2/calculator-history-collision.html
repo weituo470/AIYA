@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>手机四则运算计算器</title>
+<style>
+/* ===== 全局样式：让页面铺满手机屏幕，深色背景更护眼 ===== */
+* {
+  box-sizing: border-box; /* 让内边距不撑大元素宽度 */
+  -webkit-tap-highlight-color: transparent; /* 去掉手机点击时的蓝色高亮 */
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #12141c;
+  color: #f2f4f8;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow: hidden; /* 防止页面滚动，保持计算器固定布局 */
+}
+/* 外层容器：纵向排列，占满整屏 */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 10px 12px 14px;
+}
+/* 顶部标题栏 */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 8px;
+}
+.topbar h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #9aa4b8;
+  letter-spacing: 1px;
+}
+/* 历史开关按钮 */
+.history-toggle {
+  border: 1px solid #2c3242;
+  background: #1b1f2b;
+  color: #8fd0ff;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  min-height: 32px;
+}
+/* 显示区：结果数字独立显示 */
+.display {
+  background: #1b1f2b;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  overflow: hidden;
+}
+/* 上方小字：显示当前正在输入的算式 */
+.expression {
+  font-size: 15px;
+  color: #7d879c;
+  min-height: 20px;
+  word-break: break-all;
+  text-align: right;
+  width: 100%;
+}
+/* 下方大字：显示结果或当前输入 */
+.result {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.15;
+  word-break: break-all;
+  text-align: right;
+  width: 100%;
+  margin-top: 6px;
+}
+/* 错误状态：结果变红 */
+.result.error {
+  color: #ff6b6b;
+  font-size: 26px;
+}
+/* 历史面板：默认隐藏，点击“历史”后展开 */
+.history-panel {
+  display: none;
+  background: #1b1f2b;
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.history-panel.open {
+  display: block;
+}
+.history-title {
+  font-size: 13px;
+  color: #8fd0ff;
+  margin-bottom: 6px;
+}
+.history-item {
+  font-size: 14px;
+  color: #c7cede;
+  padding: 4px 0;
+  border-bottom: 1px dashed #2c3242;
+  word-break: break-all;
+}
+.history-item:last-child {
+  border-bottom: none;
+}
+.history-empty {
+  font-size: 13px;
+  color: #6b7488;
+}
+/* 键盘区：4 列网格布局 */
+.keypad {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 8px;
+}
+/* 所有按钮的通用样式，保证触屏点击区域够大 */
+.key {
+  border: none;
+  border-radius: 14px;
+  background: #232838;
+  color: #f2f4f8;
+  font-size: 22px;
+  font-weight: 600;
+  min-height: 48px;
+  cursor: pointer;
+  transition: transform 0.06s ease, background 0.15s ease;
+  user-select: none;
+}
+/* 按下时的反馈效果 */
+.key:active {
+  transform: scale(0.95);
+  background: #2e3548;
+}
+/* 运算符按钮：橙色高亮 */
+.key.op {
+  background: #2b3550;
+  color: #ffb454;
+}
+/* 功能按钮：清空、退格 */
+.key.func {
+  background: #2a2f3f;
+  color: #8fd0ff;
+  font-size: 18px;
+}
+/* 等号按钮：绿色强调 */
+.key.equal {
+  background: #2f9e6b;
+  color: #ffffff;
+  font-size: 26px;
+}
+/* 数字 0 占两列 */
+.key.zero {
+  grid-column: span 2;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 顶部标题和“历史”按钮 -->
+  <div class="topbar">
+    <h1>四则运算计算器</h1>
+    <button class="history-toggle" id="historyToggle">历史</button>
+  </div>
+
+  <!-- 显示区：上方算式，下方结果 -->
+  <div class="display">
+    <div class="expression" id="expression"></div>
+    <div class="result" id="result">0</div>
+  </div>
+
+  <!-- 历史面板：点击“历史”按钮切换显示 -->
+  <div class="history-panel" id="historyPanel">
+    <div class="history-title">计算历史</div>
+    <div id="historyList"><div class="history-empty">暂无记录</div></div>
+  </div>
+
+  <!-- 键盘区：数字、运算符、清空、退格、等号 -->
+  <div class="keypad" id="keypad">
+    <button class="key func" data-action="clear">清空</button>
+    <button class="key func" data-action="back">退格</button>
+    <button class="key op" data-op="/">÷</button>
+    <button class="key op" data-op="*">×</button>
+
+    <button class="key" data-num="7">7</button>
+    <button class="key" data-num="8">8</button>
+    <button class="key" data-num="9">9</button>
+    <button class="key op" data-op="-">−</button>
+
+    <button class="key" data-num="4">4</button>
+    <button class="key" data-num="5">5</button>
+    <button class="key" data-num="6">6</button>
+    <button class="key op" data-op="+">+</button>
+
+    <button class="key" data-num="1">1</button>
+    <button class="key" data-num="2">2</button>
+    <button class="key" data-num="3">3</button>
+    <button class="key equal" data-action="equals">=</button>
+
+    <button class="key zero" data-num="0">0</button>
+    <button class="key" data-num=".">.</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   手机四则运算计算器 —— 原生 JavaScript 实现
+   全部离线运行，不使用任何外部资源或网络请求
+   ========================================================= */
+
+/* ---------- 1. 获取页面元素 ---------- */
+var expressionEl = document.getElementById('expression'); /* 上方算式显示 */
+var resultEl = document.getElementById('result');         /* 下方结果显示 */
+var keypadEl = document.getElementById('keypad');         /* 键盘容器 */
+var historyToggle = document.getElementById('historyToggle'); /* 历史按钮 */
+var historyPanel = document.getElementById('historyPanel');   /* 历史面板 */
+var historyList = document.getElementById('historyList');     /* 历史列表 */
+
+/* ---------- 2. 应用状态变量 ---------- */
+var currentInput = '0';   /* 当前正在输入的数字字符串 */
+var firstOperand = null;  /* 第一个操作数（已确认的数字） */
+var pendingOp = null;     /* 待执行的运算符，如 + - * / */
+var justEvaluated = false;/* 是否刚按过等号，用于连续运算 */
+var hasError = false;     /* 是否处于错误状态（如除以零） */
+var history = [];         /* 计算历史，保存在内存中（不使用浏览器存储） */
+
+/* ---------- 3. 工具函数 ---------- */
+
+/* 把运算符转成好看的显示符号 */
+function opSymbol(op) {
+  if (op === '/') return '÷';
+  if (op === '*') return '×';
+  if (op === '-') return '−';
+  return op;
+}
+
+/* 格式化数字：去掉多余的小数零，避免出现 0.30000000000000004 这类浮点误差 */
+function formatNumber(num) {
+  if (!isFinite(num)) return '错误';
+  /* 先四舍五入到 10 位小数，再转成字符串去掉末尾的 0 */
+  var rounded = Math.round(num * 1e10) / 1e10;
+  var str = String(rounded);
+  /* 如果结果太长，用科学计数法显示 */
+  if (str.length > 14) {
+    str = rounded.toExponential(6);
+  }
+  return str;
+}
+
+/* 根据当前状态刷新显示区 */
+function render() {
+  /* 上方算式：如果有待执行运算，显示“第一个数 运算符” */
+  if (firstOperand !== null && pendingOp !== null) {
+    expressionEl.textContent = formatNumber(firstOperand) + ' ' + opSymbol(pendingOp);
+  } else {
+    expressionEl.textContent = '';
+  }
+
+  /* 下方结果：错误状态显示错误信息，否则显示当前输入 */
+  if (hasError) {
+    resultEl.textContent = currentInput;
+    resultEl.classList.add('error');
+  } else {
+    resultEl.textContent = currentInput;
+    resultEl.classList.remove('error');
+  }
+}
+
+/* 刷新历史面板内容 */
+function renderHistory() {
+  if (history.length === 0) {
+    historyList.innerHTML = '<div class="history-empty">暂无记录</div>';
+    return;
+  }
+  /* 最新的记录显示在最上面 */
+  var html = '';
+  for (var i = history.length - 1; i >= 0; i--) {
+    html += '<div class="history-item">' + history[i] + '</div>';
+  }
+  historyList.innerHTML = html;
+}
+
+/* 轻量震动反馈：仅在有意义的关键操作时调用，且做能力检测 */
+function vibrate(pattern) {
+  if (navigator && typeof navigator.vibrate === 'function') {
+    try {
+      navigator.vibrate(pattern);
+    } catch (e) {
+      /* 震动失败不影响功能，静默忽略 */
+    }
+  }
+}
+
+/* ---------- 4. 核心运算逻辑 ---------- */
+
+/* 执行一次二元运算，返回结果或抛出错误标记 */
+function compute(a, op, b) {
+  if (op === '+') return a + b;
+  if (op === '-') return a - b;
+  if (op === '*') return a * b;
+  if (op === '/') {
+    if (b === 0) return null; /* 除以零返回 null 表示错误 */
+    return a / b;
+  }
+  return b;
+}
+
+/* 处理数字或小数点输入 */
+function inputNumber(ch) {
+  /* 如果处于错误状态，先自动清空恢复 */
+  if (hasError) {
+    clearAll();
+  }
+
+  /* 刚按过等号后再输入数字，表示开始新的计算 */
+  if (justEvaluated) {
+    currentInput = '0';
+    firstOperand = null;
+    pendingOp = null;
+    justEvaluated = false;
+  }
+
+  if (ch === '.') {
+    /* 小数点：如果已经包含小数点则忽略 */
+    if (currentInput.indexOf('.') !== -1) return;
+    currentInput += '.';
+  } else {
+    /* 数字：如果当前是单个 0，则替换掉，避免出现 01 这种写法 */
+    if (currentInput === '0') {
+      currentInput = ch;
+    } else {
+      /* 限制输入长度，防止数字太长溢出显示 */
+      if (currentInput.replace('-', '').replace('.', '').length >= 12) return;
+      currentInput += ch;
+    }
+  }
+  render();
+}
+
+/* 处理运算符输入（支持连续运算） */
+function inputOperator(op) {
+  /* 错误状态下不允许继续运算，提示先清空 */
+  if (hasError) return;
+
+  var value = parseFloat(currentInput);
+
+  if (firstOperand === null) {
+    /* 第一次按运算符：把当前输入作为第一个操作数 */
+    firstOperand = value;
+  } else if (pendingOp !== null && !justEvaluated) {
+    /* 已经有待执行运算：先算出中间结果，实现连续运算 */
+    var mid = compute(firstOperand, pendingOp, value);
+    if (mid === null) {
+      showDivideByZeroError();
+      return;
+    }
+    firstOperand = mid;
+    currentInput = formatNumber(mid);
+  } else {
+    /* 刚按过等号后再按运算符：用结果继续运算 */
+    firstOperand = value;
+  }
+
+  pendingOp = op;
+  justEvaluated = false;
+  /* 输入运算符后，下一次输入数字应重新开始 */
+  currentInput = '0';
+  render();
+}
+
+/* 处理等号：计算结果并写入历史 */
+function inputEquals() {
+  if (hasError) return;
+  if (firstOperand === null || pendingOp === null) return;
+
+  var value = parseFloat(currentInput);
+  var result = compute(firstOperand, pendingOp, value);
+
+  if (result === null) {
+    showDivideByZeroError();
+    return;
+  }
+
+  /* 记录历史：例如 “8 ÷ 2 = 4” */
+  var record = formatNumber(firstOperand) + ' ' + opSymbol(pendingOp) + ' ' + formatNumber(value) + ' = ' + formatNumber(result);
+  history.push(record);
+  renderHistory();
+
+  /* 更新状态：结果作为新的当前值，方便继续运算 */
+  currentInput = formatNumber(result);
+  firstOperand = null;
+  pendingOp = null;
+  justEvaluated = true;
+  render();
+  vibrate(20); /* 计算成功给一次轻微震动反馈 */
+}
+
+/* 显示除以零的友好错误 */
+function showDivideByZeroError() {
+  hasError = true;
+  currentInput = '不能除以零，请点清空'; /* 友好中文提示 */
+  firstOperand = null;
+  pendingOp = null;
+  justEvaluated = false;
+  render();
+  vibrate([25, 40, 25]); /* 错误提示用短促震动模式 */
+}
+
+/* 退格：删除当前输入的最后一位 */
+function backspace() {
+  if (hasError) {
+    /* 错误状态下退格等同于清空恢复 */
+    clearAll();
+    return;
+  }
+  if (justEvaluated) {
+    /* 刚出结果时退格，先回到可编辑状态 */
+    justEvaluated = false;
+  }
+  if (currentInput.length <= 1) {
+    currentInput = '0';
+  } else {
+    currentInput = currentInput.slice(0, -1);
+    /* 如果删到只剩负号或空，恢复为 0 */
+    if (currentInput === '' || currentInput === '-') {
+      currentInput = '0';
+    }
+  }
+  render();
+}
+
+/* 清空：重置所有状态，但保留历史记录 */
+function clearAll() {
+  currentInput = '0';
+  firstOperand = null;
+  pendingOp = null;
+  justEvaluated = false;
+  hasError = false;
+  render();
+}
+
+/* ---------- 5. 事件绑定 ---------- */
+
+/* 使用事件委托：在键盘容器上监听点击，判断点到了哪个按钮 */
+keypadEl.addEventListener('click', function (event) {
+  var btn = event.target.closest('button');
+  if (!btn) return;
+
+  /* 优先处理数字按钮 */
+  if (btn.dataset.num !== undefined) {
+    inputNumber(btn.dataset.num);
+    return;
+  }
+
+  /* 处理运算符按钮 */
+  if (btn.dataset.op !== undefined) {
+    inputOperator(btn.dataset.op);
+    return;
+  }
+
+  /* 处理功能按钮：清空、退格、等号 */
+  var action = btn.dataset.action;
+  if (action === 'clear') {
+    clearAll();
+    vibrate(15);
+  } else if (action === 'back') {
+    backspace();
+  } else if (action === 'equals') {
+    inputEquals();
+  }
+});
+
+/* 历史按钮：切换历史面板的显示与隐藏 */
+historyToggle.addEventListener('click', function () {
+  historyPanel.classList.toggle('open');
+  vibrate(10);
+});
+
+/* ---------- 6. 键盘支持（方便在电脑上调试） ---------- */
+document.addEventListener('keydown', function (event) {
+  var key = event.key;
+
+  /* 数字和小数点 */
+  if (key >= '0' && key <= '9') {
+    inputNumber(key);
+    return;
+  }
+  if (key === '.') {
+    inputNumber('.');
+    return;
+  }
+
+  /* 运算符 */
+  if (key === '+' || key === '-' || key === '*' || key === '/') {
+    event.preventDefault(); /* 防止浏览器默认行为 */
+    inputOperator(key);
+    return;
+  }
+
+  /* 等号：回车或 = 都可以 */
+  if (key === 'Enter' || key === '=') {
+    event.preventDefault();
+    inputEquals();
+    return;
+  }
+
+  /* 退格键 */
+  if (key === 'Backspace') {
+    event.preventDefault();
+    backspace();
+    return;
+  }
+
+  /* Esc 键清空 */
+  if (key === 'Escape') {
+    clearAll();
+  }
+});
+
+/* ---------- 7. 初始化 ---------- */
+render();
+renderHistory();
+</script>
+</body>
+</html>

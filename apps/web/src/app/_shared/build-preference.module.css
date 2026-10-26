@@ -1,0 +1,17 @@
+.selector {
+  --build-font-body: 1.125rem;
+  --build-font-control: 1rem;
+  --build-font-meta: .875rem;
+  color: #173c31;
+  padding: 16px 0;
+  max-width: 100%;
+}
+.selector fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.selector legend { font-size: var(--build-font-control); font-weight: 600; margin-bottom: 8px; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choices label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; box-sizing: border-box; border: 1px solid #a5cabc; border-radius: 12px; background: #fff; font-size: var(--build-font-control); line-height: 1.7; cursor: pointer; }
+.choices label:has(input:checked) { background: #e5f8f0; border-color: #087454; color: #075c43; }
+.choices input { accent-color: #087454; width: 18px; height: 18px; margin: 0; flex: none; }
+.choices label:focus-within { outline: 3px solid #087454; outline-offset: 3px; }
+.selector p { font-size: var(--build-font-body); line-height: 1.8; margin: 10px 0 0; color: #52685e; max-width: 65ch; }
+@media (max-width: 440px) { .choices { display: grid; grid-template-columns: 1fr; } .choices label { width: 100%; } }

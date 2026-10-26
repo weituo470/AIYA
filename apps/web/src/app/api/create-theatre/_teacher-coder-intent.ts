@@ -8,8 +8,8 @@ const chineseDoubleNegation = /(?:不能没有|不可没有|不能不|不可不|
 const englishDoubleNegation = /(?:not\s+only|cannot\s+do\s+without|can't\s+do\s+without|not\s+without)\s*$/i;
 const chineseNonNegatingQualifier = /(?:不要只有|不能只有|不只是|不止是?|不仅(?:仅)?|并非只有|不是只有)\s*$/;
 
-const chinesePreNegation = /(?:不要|不需要|无需|不必|不用|不使用|不提供|不显示|不出现|不加入|不添加|不实现|不接入|不加载|不依赖|不启用|不请求|不申请|禁止|避免|别|不能出现|不可出现|不允许|取消|移除|删除|去掉|排除|舍弃|禁用|没有|无|不是|并非)(?:\s|["'“”‘’()（）]|任何|额外|默认|自动|相关|这些|上述|所有|一个|该|此|这种|对应|在|页面|界面|中|里|上|的|再|出现|显示|提供|加入|添加|设置|使用|实现|包含|保留|展示|生成|创建|放置|写入|接入|加载|依赖|支持|启用|请求|申请|采用){0,16}$/;
-const chineseNegationScope = /(?:不要|不需要|无需|不必|不用|不使用|不提供|不显示|不出现|不加入|不添加|不实现|不接入|不加载|不依赖|不启用|不请求|不申请|禁止|避免|别|不能出现|不可出现|不允许|取消|移除|删除|去掉|排除|舍弃|禁用|没有|无|不是|并非)[\s\S]{0,48}$/;
+const chinesePreNegation = /(?:不要|不需要|无需|不必|不用|不使用|不提供|不显示|不出现|不加入|不添加|不实现|不做|不引入|不接入|不加载|不依赖|不启用|不请求|不申请|禁止|避免|别|不能出现|不可出现|不允许|取消|移除|删除|去掉|排除|舍弃|禁用|没有|无|不是|并非)(?:\s|["'“”‘’()（）]|任何|额外|默认|自动|相关|这些|上述|所有|一个|该|此|这种|对应|在|页面|界面|中|里|上|的|再|出现|显示|提供|加入|添加|设置|使用|实现|包含|保留|展示|生成|创建|放置|写入|接入|加载|依赖|支持|启用|请求|申请|采用){0,16}$/;
+const chineseNegationScope = /(?:不要|不需要|无需|不必|不用|不使用|不提供|不显示|不出现|不加入|不添加|不实现|不做|不引入|不接入|不加载|不依赖|不启用|不请求|不申请|禁止|避免|别|不能出现|不可出现|不允许|取消|移除|删除|去掉|排除|舍弃|禁用|没有|无|不是|并非)[\s\S]{0,48}$/;
 const englishPreNegation = /(?:\b(?:no|without|never|exclude|avoid|remove|disable)\b|\b(?:do\s+not|don't|must\s+not|should\s+not|not)\b(?:\s+[a-z-]+){0,6})\s*$/i;
 
 const chinesePostNegation = /^(?:\s|["'“”‘’()（）]|按钮|功能|选项|模式|入口|文案|标签|控制|支持|权限){0,12}(?:也请|请|也|都|一并)?(?:不要|不需要|无需|不必|不用|禁止|取消|移除|删除|去掉|不显示|不出现|不能出现|不可出现|不允许)/;
@@ -113,7 +113,9 @@ export const isGestureBodyVisionRequest = (idea: string) => (
 );
 
 export const isWhistlePitchRequest = (idea: string) => (
-  hasAffirmedIntent(idea, /口哨|哨声|吹哨|特定频率|音高|whistle|pitch\s*(?:detect|track|frequency)|audio\s*frequency/i)
+  // A synthesized note's pitch is output, not evidence of live audio capture.
+  // Require a whistle or a measurement/recognition operation, not "音高" alone.
+  hasAffirmedIntent(idea, /口哨|哨声|吹哨|(?:检测|识别|测量|追踪).{0,8}(?:音高|音调|(?:声音|音频)(?:的)?(?:特定)?频率)|(?:音高|音调|(?:声音|音频)(?:的)?(?:特定)?频率).{0,8}(?:检测|识别|测量|追踪)|\bwhistle\b|\bpitch\s*(?:detect|track|frequency)|\b(?:detect|track|measure)\w*\s+(?:audio\s+)?frequency/i)
 );
 
 export const isMicrophoneInputRequest = (idea: string) => (
@@ -128,7 +130,9 @@ export const isCameraInputRequest = (idea: string) => (
 );
 
 export const isMotionSensorRequest = (idea: string) => (
-  hasAffirmedIntent(idea, /体感|陀螺仪|加速度|重力感应|倾斜|摇晃|摇一摇|甩动|旋转手机|手机钓鱼|平滑球|平衡球|牛仔对决|姿态感应|deviceorientation|devicemotion|gyroscope|accelerometer|tilt|shake/i)
+  // Physics acceleration and simulated tilt need no device sensor. Match an
+  // actual sensor/source or a device gesture; keep genuine mobile intents.
+  hasAffirmedIntent(idea, /体感|陀螺仪|加速度(?:计|传感器)|(?:手机|设备)(?:的)?加速度|(?:读取|采集|监听|获取).{0,8}加速度|重力感应|(?:倾斜|摇晃|甩动|旋转)(?:手机|设备)|(?:手机|设备)(?:倾斜|摇晃|甩动|旋转)|摇一摇|手机钓鱼|平滑球|平衡球|牛仔对决|姿态感应|AiyaBodyMotion|\bdeviceorientation\b|\bdevicemotion\b|\bgyroscope\b|\baccelerometer\b|\b(?:tilt|shake)(?:\s+(?:the|your))?\s+(?:phone|device)\b/i)
 );
 
 export const isWhackRequest = (idea: string) => (

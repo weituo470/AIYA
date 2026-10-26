@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { TeacherCoderError, buildValidationSummary } from '../../_shared/task-trace';
+import { completedGoldenKeyLineage, type GoldenKeyContext } from '../../_shared/golden-key-flow';
 import { runTeacherCoder } from '../_core/teacher-coder-client';
 import type { CreateJob, DeviceContext, GeneratedResult } from '../_core/types';
 
@@ -96,6 +98,7 @@ export function useCreateTheatreJob({
   const startCreateJob = useCallback(async (idea: string, options: {
     interactionId?: string;
     replaceCurrentApp?: boolean;
+    goldenKeyContext?: GoldenKeyContext;
     userName?: string;
     deviceId?: string;
   } = {}) => {
@@ -121,6 +124,7 @@ export function useCreateTheatreJob({
       ];
       setJob({
         id: jobId,
+        goldenKeyContext: options.goldenKeyContext,
         interactionId: options.interactionId,
         status: 'running',
         stage: 'fast_generating',
@@ -132,6 +136,7 @@ export function useCreateTheatreJob({
         validationReport: null,
       });
       const coded = await runTeacherCoder({
+        onProgress: progress => setJob(previous => previous?.id === jobId ? { ...previous, stage: progress.stage || previous.stage, build: progress.build || previous.build } : previous),
         idea: trimmedIdea,
         modelMode: modelModeRef.current,
         teacherProfile: teacherProfileRef.current,
@@ -154,6 +159,7 @@ export function useCreateTheatreJob({
       }));
       setJob({
         id: jobId,
+        goldenKeyContext: options.goldenKeyContext,
         interactionId: options.interactionId,
         status: 'succeeded',
         stage: 'succeeded',
@@ -165,11 +171,10 @@ export function useCreateTheatreJob({
           ...coderEvents,
           { at: finishedAt, stage: 'succeeded', message: coded.reply || '老师已经完成这一版。' },
         ],
-        result: coded.result,
-        validationReport: {
-          ok: true,
-          warnings: ['由 Hermes Teacher Coding Agent 直接写入；本轮只做静态安全拦截。'],
-        },
+        result: { ...coded.result, goldenKey: completedGoldenKeyLineage(effectiveCurrentApp, options.goldenKeyContext) },
+        build: coded.build,
+        validationReport: buildValidationSummary(coded.build),
+
       });
       return true;
     } catch (reason) {
@@ -188,6 +193,7 @@ export function useCreateTheatreJob({
             ...previous,
             status: 'failed',
             stage: 'failed',
+            build: reason instanceof TeacherCoderError ? reason.build : undefined,
             error: message,
             events: [
               ...(previous.events || []),

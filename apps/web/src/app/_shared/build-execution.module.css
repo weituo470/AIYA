@@ -1,0 +1,21 @@
+.panel {
+  --build-font-body: 1.125rem;
+  --build-font-control: 1rem;
+  --build-font-meta: .875rem;
+  --build-font-heading: 1.375rem;
+  color: #173c31; background: #f5fbf8; padding: 20px; border-radius: 16px; margin: 20px 0; max-width: 100%; box-sizing: border-box;
+  font-size: var(--build-font-body); line-height: 1.8; overflow-wrap: anywhere;
+}
+.panel h3 { font-size: var(--build-font-heading); margin: 0 0 16px; }
+.panel h4 { font-size: var(--build-font-body); margin: 20px 0 8px; }
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin: 0; }
+.summary div { min-width: 0; }
+.summary dt { font-size: var(--build-font-control); color: #52685e; }
+.summary dd { font-size: var(--build-font-body); margin: 4px 0 0; }
+.panel ul { list-style: none; margin: 0; padding: 0; }
+.panel li { padding: 12px 0; border-bottom: 1px solid #c9ded3; }
+.panel li strong, .panel li span { display: block; font-size: var(--build-font-control); }
+.panel p { font-size: var(--build-font-body); margin: 4px 0; }
+.panel summary { min-height: 44px; font-size: var(--build-font-control); cursor: pointer; margin-top: 16px; }
+.panel pre { font-size: var(--build-font-control); max-height: 380px; overflow: auto; padding: 16px; color: #173c31; background: #fff; white-space: pre; }
+@media (max-width: 600px) { .panel { padding: 16px; } .summary { grid-template-columns: 1fr; } }

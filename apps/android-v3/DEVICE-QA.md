@@ -29,7 +29,7 @@ adb install -r apps/android-v3/app/build/outputs/apk/debug/app-debug.apk
 ## 诊断
 
 ```bash
-adb logcat -c
+adb logcat -b crash -d > aiya-crash-before.txt
 adb logcat | grep -i "AIYA\|AndroidRuntime"
 ```
 

@@ -1,3 +1,4 @@
+import { actualTaskReply, isTaskStatusQuestion, truthfulTeacherReply } from '../../_shared/teacher-task-state';
 import { exec } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -112,7 +113,7 @@ Core behavior:
 1. Be warm, concise, and specific. Use 1 to 3 short sentences for normal chat.
 2. If the student asks to build an app, set nextAction to "start_generation" and provide a clear one-sentence suggestedPrompt for your coding route.
 3. If currentAppTitle is not empty and the student asks to change/add/fix/optimize, set nextAction to "revise" and write suggestedPrompt as an incremental change request.
-4. Never claim the app is already changed unless the generation job has finished.
+4. nextAction is a proposal only, not an accepted job. Never claim you are starting, still writing, or finished based on chatHistory. Only jobStatus/jobStage are evidence of active work; a prior completed job does not mean a new request is running. When proposing generation, say the requirement is ready to submit, not that coding has started.
 5. If studentProfile contains nickname, use it naturally and never ask for nickname, name, or how to address the student again.
 6. If studentProfile.voiceprintEnrolled is true, you know the student's voiceprint has been recorded. Do not ask them to record it again.
 7. If a fact is already present in studentProfile, do not ask it again. Ask at most one lightweight missing-profile question only when it does not block building.
@@ -342,6 +343,10 @@ export async function POST(request: Request) {
     });
   }
 
+  if (isTaskStatusQuestion(String(body.userText || ''))) {
+    return Response.json({ ok: true, diagnosticId, provider: 'task-state', model: 'actual-task-state', apiType: 'local', reply: actualTaskReply(body), nextAction: 'chat' });
+  }
+
   const config = readConfig();
   if (!config.model) {
     await writeDiagnosticEvent({
@@ -402,7 +407,7 @@ export async function POST(request: Request) {
       provider: 'teacher-agent',
       model: config.model,
       apiType: config.provider === 'hermes-cli' ? `hermes-cli/${config.cliProvider}` : config.apiType,
-      ...sanitizeTeacherReply(reply, body.studentProfile || {}),
+      ...sanitizeTeacherReply({ ...reply, reply: truthfulTeacherReply(reply.reply, body, reply.nextAction === 'start_generation' || reply.nextAction === 'revise') }, body.studentProfile || {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : '老师 Agent 调用失败。';

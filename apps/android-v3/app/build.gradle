@@ -12,8 +12,8 @@ android {
         applicationId 'cc.shenliu.aiya.v3'
         minSdk 26
         targetSdk 36
-        versionCode 66
-        versionName '0.6.60'
+        versionCode 76
+        versionName '0.6.70'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
@@ -40,6 +40,18 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
     }
 }
 
+// Catalog tests read this asset directly; changes must invalidate Gradle's test cache.
+tasks.withType(Test).configureEach {
+    inputs.file('src/main/assets/golden-key.json')
+    inputs.property('goldenKeyLive', System.getenv('AIYA_GOLDEN_KEY_LIVE') ?: '0')
+    inputs.property('goldenKeyIds', System.getenv('AIYA_GOLDEN_KEY_IDS') ?: '')
+    inputs.property('taskRecoveryLive', System.getenv('AIYA_RECOVERY_LIVE') ?: '0')
+    inputs.property('taskRecoveryClientId', System.getenv('AIYA_RECOVERY_CLIENT_ID') ?: '')
+    if (System.getenv('AIYA_GOLDEN_KEY_LIVE') == '1' || System.getenv('AIYA_RECOVERY_LIVE') == '1') {
+        outputs.upToDateWhen { false }
+    }
+}
+
 dependencies {
     implementation platform('androidx.compose:compose-bom:2026.06.01')
     implementation 'androidx.activity:activity-compose:1.13.0'
@@ -52,6 +64,15 @@ dependencies {
 
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test:runner:1.6.2'
+
+    testImplementation 'junit:junit:4.13.2'
+    // Optional verified offline cache for this host's blocked Maven connection.
+    // Test classpath only; never packaged into the APK.
+    if (project.hasProperty('aiyaJsonTestJar')) {
+        testImplementation files(project.property('aiyaJsonTestJar'))
+    } else {
+        testImplementation 'org.json:json:20240303'
+    }
 
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'

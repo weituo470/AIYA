@@ -11,6 +11,7 @@ import {
   inferStudentProfile,
   isAppBuildRequest,
   isAppRevisionRequest,
+  isProfileOnlyStudentMessage,
   profileSummary,
   removeNicknameQuestions,
   stripNicknameQuestions,
@@ -44,6 +45,16 @@ import {
   theatreReplayStorageKey,
   type TheatreReplaySample,
 } from './_core/theatre-replay';
+import { ModelSwitcher } from '../_shared/ModelSwitcher';
+import { TaskTracePanel } from '../_shared/TaskTracePanel';
+import { selectTaskBuild } from '../_shared/task-trace';
+import { actualTaskReply, isTaskStatusQuestion, resolveGenerationDecision, truthfulTeacherReply } from '../_shared/teacher-task-state';
+import traceStyles from '../_shared/task-trace.module.css';
+import { BuildPreferenceSelector } from '../_shared/BuildPreferenceSelector';
+import { GoldenKeyPicker } from '../_shared/GoldenKeyPicker';
+import { GoldenKeyJourney } from '../_shared/GoldenKeyJourney';
+import type { GoldenKeyContext, GoldenKeyUpgradeDraft } from '../_shared/golden-key-flow';
+import goldenKeyStyles from '../_shared/golden-key.module.css';
 import { useCreateTheatrePublicSettings } from '../_shared/useCreateTheatrePublicSettings';
 import {
   createVoiceprintEmbedding,
@@ -90,6 +101,7 @@ const isExplicitNewAppRequest = (text: string) => (
 );
 
 type TeacherChatSendOptions = {
+  newProjectDraft?: boolean;
   preTeacherReply?: string;
   baseMessages?: TeacherChatMessage[];
   interactionId?: string;
@@ -216,6 +228,9 @@ export default function CreateTheatreClient() {
   const [studentProfile, setStudentProfile] = useState<StudentProfile>({});
   const [teacherChatMessages, setTeacherChatMessages] = useState<TeacherChatMessage[]>([]);
   const [teacherChatInput, setTeacherChatInput] = useState('');
+  const [goldenKeyDraft, setGoldenKeyDraft] = useState(false);
+  const [goldenKeyExampleId, setGoldenKeyExampleId] = useState('');
+  const [goldenKeyUpgradeDraft, setGoldenKeyUpgradeDraft] = useState<GoldenKeyUpgradeDraft | null>(null);
   const [isTeacherChatting, setIsTeacherChatting] = useState(false);
   const [lastInteractionId, setLastInteractionId] = useState('');
   const [failureRetryUsed, setFailureRetryUsed] = useState(false);
@@ -275,7 +290,7 @@ export default function CreateTheatreClient() {
   });
   const guide = useCreateTheatreGuide();
 
-  const teacherChatInputRef = useRef<HTMLInputElement | null>(null);
+  const teacherChatInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const cursorRef = useRef({ start: 0, end: 0 });
   const studentProfileRef = useRef<StudentProfile>({});
   const voiceprintModeRef = useRef<'idle' | 'enroll' | 'login'>('idle');
@@ -289,7 +304,7 @@ export default function CreateTheatreClient() {
   const replayProjectIdRef = useRef('');
   const teacherChatEndRef = useRef<HTMLDivElement | null>(null);
   const sendTeacherChatRef = useRef<(text?: string, options?: TeacherChatSendOptions) => Promise<void> | void>(() => undefined);
-  const autoStartMetaRef = useRef<{ interactionId?: string; replaceCurrentApp?: boolean }>({});
+  const autoStartMetaRef = useRef<{ interactionId?: string; replaceCurrentApp?: boolean; goldenKeyContext?: GoldenKeyContext }>({});
   const microphoneReady = microphonePermission === 'granted';
 
   const clearReplayProject = useCallback(() => {
@@ -696,7 +711,7 @@ export default function CreateTheatreClient() {
       teacherChatInputRef.current?.focus();
       teacherChatInputRef.current?.setSelectionRange(nextCursor, nextCursor);
       cursorRef.current = { start: nextCursor, end: nextCursor };
-      sendTeacherChatRef.current(next, voiceprintLoginOptions || undefined);
+      sendTeacherChatRef.current(next, { ...voiceprintLoginOptions, newProjectDraft: goldenKeyDraft });
     });
   };
 
@@ -916,10 +931,21 @@ export default function CreateTheatreClient() {
   const sendTeacherChat = useCallback(async (text = teacherChatInput, options: TeacherChatSendOptions = {}) => {
     const value = text.trim();
     if (!value || isTeacherChatting) return;
+    // A chosen template is an explicit new-project draft, not a revision inferred from its wording.
+    const usingGoldenKey = Boolean(options.newProjectDraft || (goldenKeyDraft && value === teacherChatInput.trim()));
+    const usingGoldenUpgrade = Boolean(!usingGoldenKey && goldenKeyUpgradeDraft && value === teacherChatInput.trim());
+    if (usingGoldenUpgrade && (isActive || !currentApp?.html || currentApp.html !== goldenKeyUpgradeDraft?.targetHtml)) {
+      setError('当前作品已变化或仍在生成，请重新选择这一轮加强，避免修改错误的作品。');
+      return;
+    }
+    const goldenKeyContext: GoldenKeyContext | undefined = usingGoldenKey && goldenKeyExampleId
+      ? { exampleId: goldenKeyExampleId }
+      : usingGoldenUpgrade && goldenKeyUpgradeDraft
+        ? { exampleId: goldenKeyUpgradeDraft.exampleId, upgradeId: goldenKeyUpgradeDraft.upgradeId } : undefined;
     const interactionId = options.interactionId || createInteractionId();
     setLastInteractionId(interactionId);
     const activeStudentProfile = studentProfileRef.current;
-    const nextProfile = inferStudentProfile(activeStudentProfile, value);
+    const nextProfile = usingGoldenKey || usingGoldenUpgrade ? activeStudentProfile : inferStudentProfile(activeStudentProfile, value);
     const isNamingSelf = Boolean(nextProfile.nickname && nextProfile.nickname !== activeStudentProfile.nickname);
     reportTheatreInteraction({
       interactionId,
@@ -961,6 +987,7 @@ export default function CreateTheatreClient() {
         clearReplayProject();
         setPrompt('');
         setTeacherChatInput('');
+        setGoldenKeyDraft(false);
         reportTheatreInteraction({
           interactionId,
           phase: 'memory_restored',
@@ -979,9 +1006,11 @@ export default function CreateTheatreClient() {
     const baseMessages = options.baseMessages || teacherChatMessages;
     const pendingMessages = [...baseMessages, studentMessage].slice(-50);
     const withPreTeacherReply = (reply: string) => [options.preTeacherReply, reply].filter(Boolean).join('\n');
-    const wantsNewApp = isExplicitNewAppRequest(value);
-    const wantsRevision = isAppRevisionRequest(value);
-    const shouldStartImmediately = !isActive && (wantsNewApp || (!currentApp?.html && isAppBuildRequest(value)) || (currentApp?.html && wantsRevision));
+    const wantsNewApp = usingGoldenKey || (!usingGoldenUpgrade && isExplicitNewAppRequest(value));
+    const wantsRevision = usingGoldenUpgrade || (!usingGoldenKey && isAppRevisionRequest(value));
+    const profileOnly = !usingGoldenKey && !usingGoldenUpgrade && (isNamingSelf || isProfileOnlyStudentMessage(value) || value.trim() === nextProfile.nickname);
+    const immediateDecision = resolveGenerationDecision({ isActive, hasCurrentApp: Boolean(currentApp?.html), wantsNewApp, wantsRevision, wantsFirstBuild: isAppBuildRequest(value), userText: value, profileOnly });
+    const shouldStartImmediately = immediateDecision.shouldStart;
     const shouldReplaceCurrentApp = Boolean(currentApp?.html && wantsNewApp);
     const shouldGuideVoiceprint = Boolean(
       isNamingSelf
@@ -1003,13 +1032,13 @@ export default function CreateTheatreClient() {
     studentProfileRef.current = nextProfile;
     setStudentProfile(nextProfile);
     setTeacherChatInput('');
+    setGoldenKeyDraft(false);
+    setGoldenKeyUpgradeDraft(null);
 
     if (shouldStartImmediately) {
-      const startReply = currentApp?.html
-        ? (shouldReplaceCurrentApp ? '\u6536\u5230\uFF0C\u6211\u73B0\u5728\u5F00\u59CB\u5199\u4E00\u4E2A\u65B0\u7684\u5E94\u7528\u3002' : '\u6536\u5230\uFF0C\u6211\u73B0\u5728\u76F4\u63A5\u4FEE\u6539\u5F53\u524D\u4EE3\u7801\u3002')
-        : nextProfile.nickname
-          ? `\u6536\u5230\uFF0C${nextProfile.nickname}\uFF0C\u6211\u73B0\u5728\u5F00\u59CB\u5199\u7B2C\u4E00\u7248\u3002`
-          : '\u6536\u5230\uFF0C\u6211\u73B0\u5728\u5F00\u59CB\u5199\u7B2C\u4E00\u7248\u3002';
+      const startReply = usingGoldenUpgrade
+        ? '收到，这轮会在当前作品上继续加强。完成后，请对照验收点比较前后的效果。'
+        : '收到，准备提交这个需求。实际生成进度会显示在下方和“任务轨迹”中。';
       const startReplyForDisplay = currentApp?.html ? stripNicknameQuestions(startReply) : appendNicknameQuestion(startReply, nextProfile);
       const reply = withPreTeacherReply([startReplyForDisplay, voiceprintGuideReply].filter(Boolean).join('\n'));
       const teacherMessage = makeTeacherMessage(reply);
@@ -1020,7 +1049,7 @@ export default function CreateTheatreClient() {
       reportTheatreInteraction({
         interactionId,
         phase: 'generation_decision',
-        message: shouldReplaceCurrentApp ? 'new app generation started over restored current app' : 'generation started immediately',
+        message: shouldReplaceCurrentApp ? 'new app generation submission scheduled' : 'generation submission scheduled',
         studentNickname: nextProfile.nickname,
         userText: value,
         teacherReply: reply,
@@ -1035,8 +1064,15 @@ export default function CreateTheatreClient() {
         },
       });
       setPrompt(value);
-      autoStartMetaRef.current = { interactionId, replaceCurrentApp: shouldReplaceCurrentApp };
+      autoStartMetaRef.current = { interactionId, replaceCurrentApp: shouldReplaceCurrentApp, goldenKeyContext };
       setAutoStartPrompt(value);
+      return;
+    }
+
+    if (isTaskStatusQuestion(value)) {
+      const statusReply = actualTaskReply({ jobStatus: job?.status, jobStage: job?.stage, currentAppTitle: currentApp?.title });
+      setTeacherChatMessages([...pendingMessages, makeTeacherMessage(statusReply)].slice(-50));
+      reportTheatreInteraction({ interactionId, phase: 'teacher_reply_only', message: 'actual task status reply', studentNickname: nextProfile.nickname, userText: value, teacherReply: statusReply, currentAppTitle: currentApp?.title || '', decision: { shouldStart: false, source: 'actual-task-state' } });
       return;
     }
 
@@ -1060,6 +1096,7 @@ export default function CreateTheatreClient() {
     try {
       const response = await fetch('/api/teacher-agent', {
         method: 'POST',
+        signal: AbortSignal.timeout(35000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phase: isActive ? 'waiting_chat' : 'chat',
@@ -1080,12 +1117,9 @@ export default function CreateTheatreClient() {
       const reply = removeNicknameQuestions(String(payload.reply || '').trim() || '\u6211\u5728\u3002\u6211\u4EEC\u7EE7\u7EED\u3002', nextProfile);
       const wantsFirstBuild = payload.nextAction === 'start_generation' || isAppBuildRequest(value);
       const agentWantsRevision = payload.nextAction === 'revise' || isAppRevisionRequest(value);
-      const shouldStart = !isActive && (wantsNewApp || (currentApp?.html ? agentWantsRevision : wantsFirstBuild));
-      const agentShouldReplaceCurrentApp = Boolean(currentApp?.html && wantsNewApp);
+      const { shouldStart, shouldReplaceCurrentApp: agentShouldReplaceCurrentApp } = resolveGenerationDecision({ isActive, hasCurrentApp: Boolean(currentApp?.html), wantsNewApp, wantsRevision: agentWantsRevision, wantsFirstBuild, nextAction: payload.nextAction, userText: value, profileOnly });
       const generationPrompt = String(payload.suggestedPrompt || value).trim();
-      const startAwareReply = shouldStart && !/\u5F00\u59CB|\u751F\u6210|\u5199\u4EE3\u7801|\u8001\u5E08|\u4FEE\u6539\u4EFB\u52A1/.test(reply)
-        ? `${reply}\n\u6211\u73B0\u5728\u5F00\u59CB${agentShouldReplaceCurrentApp ? '\u5199\u4E00\u4E2A\u65B0\u7684\u5E94\u7528' : currentApp?.html ? '\u4FEE\u6539\u5F53\u524D\u4EE3\u7801' : '\u5199\u7B2C\u4E00\u7248\u4EE3\u7801'}\u3002`
-        : reply;
+      const startAwareReply = truthfulTeacherReply(reply, { jobStatus: job?.status, jobStage: job?.stage, currentAppTitle: currentApp?.title }, shouldStart);
       const finalReply = shouldStart
         ? (currentApp?.html ? stripNicknameQuestions(startAwareReply) : appendNicknameQuestion(startAwareReply, nextProfile))
         : removeNicknameQuestions(startAwareReply, nextProfile);
@@ -1149,6 +1183,9 @@ export default function CreateTheatreClient() {
     restoreCurrentApp,
     studentProfile,
     teacherChatInput,
+    goldenKeyDraft,
+    goldenKeyExampleId,
+    goldenKeyUpgradeDraft,
     teacherChatMessages,
   ]);
 
@@ -1159,7 +1196,7 @@ export default function CreateTheatreClient() {
   const chooseFirstAppSuggestion = useCallback((suggestion: typeof firstAppSuggestions[number]) => {
     const interactionId = createInteractionId();
     setLastInteractionId(interactionId);
-    const reply = appendNicknameQuestion(`\u597D\uFF0C\u6211\u4EEC\u5148\u505A${suggestion.label}\u3002\n\u6211\u73B0\u5728\u5F00\u59CB\u4EB2\u81EA\u5199\u4EE3\u7801\u3002`, studentProfile);
+    const reply = appendNicknameQuestion(`\u597D\uFF0C\u6211\u4EEC\u5148\u505A${suggestion.label}\u3002\n准备提交需求，请以下方实际任务进度为准。`, studentProfile);
     const studentMessage = makeStudentMessage(`\u6211\u60F3\u505A\uFF1A${suggestion.label}`);
     const teacherMessage = makeTeacherMessage(reply);
     beginReplayProject(interactionId, [studentMessage, teacherMessage], studentProfile);
@@ -1184,7 +1221,7 @@ export default function CreateTheatreClient() {
     window.requestAnimationFrame(() => teacherChatInputRef.current?.focus());
   }, [beginReplayProject, currentApp?.title, studentProfile, teacherChatMessages]);
 
-  const createJob = async (ideaOverride?: string, options: { speak?: boolean; isRetry?: boolean; interactionId?: string; replaceCurrentApp?: boolean } = {}) => {
+  const createJob = async (ideaOverride?: string, options: { speak?: boolean; isRetry?: boolean; interactionId?: string; replaceCurrentApp?: boolean; goldenKeyContext?: GoldenKeyContext } = {}) => {
     const idea = (ideaOverride || prompt).trim();
     const interactionId = options.interactionId || createInteractionId();
     if (!options.interactionId) setLastInteractionId(interactionId);
@@ -1209,14 +1246,16 @@ export default function CreateTheatreClient() {
     const started = await startCreateJob(idea, {
       interactionId,
       replaceCurrentApp: options.replaceCurrentApp,
+      goldenKeyContext: options.goldenKeyContext,
       userName: studentProfile.nickname,
       deviceId: getTheatreDeviceId(),
     });
     if (!started) {
+      setTeacherChatMessages((messages) => [...messages, makeTeacherMessage('这次需求未能完成生成。请查看错误或任务轨迹后重试；我没有在后台继续编写。')].slice(-50));
       reportTheatreInteraction({
         interactionId,
-        phase: 'generation_not_started',
-        message: 'startCreateJob returned false',
+        phase: 'generation_not_completed',
+        message: 'startCreateJob did not complete successfully',
         studentNickname: studentProfile.nickname,
         prompt: idea,
         currentAppTitle: currentApp?.title || '',
@@ -1226,7 +1265,7 @@ export default function CreateTheatreClient() {
     }
     setPrompt('');
     if (options.speak ?? true) {
-      const reply = appendNicknameQuestion(`\u597D\u7684\uFF0C\u6211\u73B0\u5728\u5F00\u59CB\u5199\uFF1A${idea}`, studentProfile);
+      const reply = appendNicknameQuestion(`作品生成已完成，请测试效果。`, studentProfile);
       setTeacherChatMessages((messages) => [...messages, makeTeacherMessage(reply)].slice(-50));
     }
   };
@@ -1239,7 +1278,7 @@ export default function CreateTheatreClient() {
       ...messages,
       makeTeacherMessage('\u521A\u624D\u8FD9\u6B21\u751F\u6210\u5931\u8D25\u4E86\u3002\u6211\u4F1A\u6309\u540C\u4E00\u4E2A\u9700\u6C42\u518D\u8BD5\u4E00\u6B21\uFF1B\u5982\u679C\u8FD8\u5931\u8D25\uFF0C\u5C31\u628A\u9519\u8BEF\u539F\u56E0\u4FDD\u7559\u4E0B\u6765\u65B9\u4FBF\u6392\u67E5\u3002'),
     ].slice(-50));
-    void createJob(job.prompt, { speak: false, isRetry: true, interactionId });
+    void createJob(job.prompt, { speak: false, isRetry: true, interactionId, goldenKeyContext: job.goldenKeyContext });
   };
 
   useEffect(() => {
@@ -1248,7 +1287,7 @@ export default function CreateTheatreClient() {
     const meta = autoStartMetaRef.current;
     autoStartMetaRef.current = {};
     setAutoStartPrompt('');
-    void createJob(idea, { speak: false, interactionId: meta.interactionId, replaceCurrentApp: meta.replaceCurrentApp });
+    void createJob(idea, { speak: false, interactionId: meta.interactionId, replaceCurrentApp: meta.replaceCurrentApp, goldenKeyContext: meta.goldenKeyContext });
   }, [autoStartPrompt, isActive]);
 
   useEffect(() => {
@@ -1291,6 +1330,7 @@ export default function CreateTheatreClient() {
           <span><strong>AIYA 创作课堂</strong><small>老师 Coding Agent</small></span>
         </a>
         <nav className={styles.nav}>
+            <ModelSwitcher />
           <div
             className={`${styles.loginStatus} ${studentProfile.nickname ? styles.loginStatusKnown : ''}`}
             aria-label={`\u767b\u5f55\u72b6\u6001\uff1a${loginStatusName}\uff0c${profileStatusText}\uff0c${voiceprintStatusText}`}
@@ -1315,6 +1355,7 @@ export default function CreateTheatreClient() {
           </a>
         </nav>
       </header>
+      <BuildPreferenceSelector />
 
       <section className={styles.stage}>
         <div className={styles.creatorCredit} aria-label="作者君维，联系微信16675143990">
@@ -1494,6 +1535,16 @@ export default function CreateTheatreClient() {
               </div>
             </div>
           ) : null}
+          <GoldenKeyPicker disabled={isActive || isTeacherChatting} onChoose={(example) => {
+            setTeacherChatInput(example.prompt);
+            setGoldenKeyDraft(true);
+            setGoldenKeyExampleId(example.id);
+            setGoldenKeyUpgradeDraft(null);
+            window.requestAnimationFrame(() => {
+              teacherChatInputRef.current?.focus();
+              teacherChatInputRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' });
+            });
+          }} />
           {!currentApp && !isActive ? (
             <div className={styles.appSuggestions} data-testid="first-app-suggestions" data-guide-id="first-app-suggestions" aria-label="老师推荐的第一个应用">
               <span>老师推荐的第一个应用</span>
@@ -1520,6 +1571,10 @@ export default function CreateTheatreClient() {
             ) : null}
             <div ref={teacherChatEndRef} />
           </div>
+          {goldenKeyDraft || goldenKeyUpgradeDraft ? <div className={goldenKeyStyles.draftNote}>
+            <span>{goldenKeyUpgradeDraft ? `🔑 ${goldenKeyUpgradeDraft.title} · 修改当前作品，可调整后发送，不会新建作品。` : '🔑 金钥匙 · 新作品需求，可修改后点击发送。发送后会切换到新作品。'}</span>
+            <button type="button" onClick={() => { setGoldenKeyDraft(false); setGoldenKeyUpgradeDraft(null); setTeacherChatInput(''); }}>取消填入</button>
+          </div> : null}
           <form
             className={styles.teacherChatForm}
             onSubmit={(event) => {
@@ -1527,8 +1582,17 @@ export default function CreateTheatreClient() {
               void sendTeacherChat();
             }}
           >
+            {goldenKeyDraft || goldenKeyUpgradeDraft ? <textarea
+              ref={(element) => { teacherChatInputRef.current = element; }}
+              className={goldenKeyStyles.draftInput}
+              data-guide-id="teacher-chat-input"
+              aria-label={goldenKeyUpgradeDraft ? "金钥匙改进意见" : "金钥匙新作品需求"}
+              value={teacherChatInput}
+              onChange={(event) => setTeacherChatInput(event.target.value)}
+              onClick={rememberCursor} onKeyUp={rememberCursor} onSelect={rememberCursor} onFocus={rememberCursor}
+            /> : (
             <input
-              ref={teacherChatInputRef}
+              ref={(element) => { teacherChatInputRef.current = element; }}
               data-guide-id="teacher-chat-input"
               value={teacherChatInput}
               onChange={(event) => setTeacherChatInput(event.target.value)}
@@ -1538,6 +1602,7 @@ export default function CreateTheatreClient() {
               onFocus={rememberCursor}
               placeholder={isActive ? '等待时可以问：老师，它现在做到哪一步了？' : currentApp ? '例如：给计算器加上发声功能' : '例如：做一个计算器，或者叫我小宇'}
             />
+            )}
             <VoiceInputButton
               voice={chatVoice}
               className={`${styles.voiceButton} ${styles.chatVoiceButton}`}
@@ -1567,14 +1632,25 @@ export default function CreateTheatreClient() {
           </aside>
 
           <aside className={styles.previewPane}>
-            <div className={styles.tabs} data-guide-id="demo-preview-tabs">
+            <div className={`${styles.tabs} ${traceStyles.toolbar}`} data-guide-id="demo-preview-tabs">
               <button className={view === 'preview' ? styles.tabActive : ''} onClick={() => setView('preview')} type="button">试玩</button>
               <button className={view === 'source' ? styles.tabActive : ''} onClick={() => setView('source')} type="button">源码</button>
               <button className={view === 'evidence' ? styles.tabActive : ''} onClick={() => setView('evidence')} type="button">验证</button>
               <button className={view === 'replay' ? styles.tabActive : ''} onClick={() => setView('replay')} type="button">回放</button>
+              <button className={`${traceStyles.tab} ${view === 'trace' ? styles.tabActive : ''}`} onClick={() => setView('trace')} type="button" aria-pressed={view === 'trace'}>任务轨迹</button>
               <button disabled={!result?.html} onClick={handleDownloadHtml} type="button">下载 HTML</button>
             </div>
-            {isActive ? (
+            {view === 'preview' ? <GoldenKeyJourney app={currentApp} version={visibleAppVersion} disabled={isActive || isTeacherChatting} onChoose={(exampleId, upgrade) => {
+              if (!currentApp?.html || isActive || isTeacherChatting) return;
+              setGoldenKeyDraft(false);
+              setGoldenKeyUpgradeDraft({ exampleId, upgradeId: upgrade.id, targetHtml: currentApp.html, title: upgrade.title });
+              setTeacherChatInput(upgrade.prompt);
+              window.requestAnimationFrame(() => {
+                teacherChatInputRef.current?.focus();
+                teacherChatInputRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' });
+              });
+            }} /> : null}
+            {isActive && view !== 'trace' ? (
               <section className={styles.quizPanel} aria-label="等待时 AI 基础问答">
                 <div className={styles.quizHeader}>
                   <div>
@@ -1618,6 +1694,7 @@ export default function CreateTheatreClient() {
                 )}
               </section>
             ) : null}
+            {view === 'trace' ? <TaskTracePanel build={selectTaskBuild(job, result)} pending={isActive} failed={job?.status === 'failed'} taskId={job?.id} /> : null}
             {view === 'replay' ? (
               <section className={styles.replayPanel} aria-label="交互过程回放">
                 <div className={styles.replayHero}>

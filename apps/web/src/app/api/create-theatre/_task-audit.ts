@@ -1,3 +1,4 @@
+import type { BuildExecution } from '../../../lib/build-contract';
 import { createHash } from 'node:crypto';
 import { prisma } from '@aiya/database';
 import { theatreStudentKey } from './_server';
@@ -12,6 +13,7 @@ export type TheatreTaskContext = {
   source?: string;
   appId?: string;
   appVersion?: string;
+  recoveryTokenHash?: string;
 };
 
 type TaskStatus = 'started' | 'succeeded' | 'failed' | 'cancelled';
@@ -33,6 +35,7 @@ export const normalizeTheatreTaskContext = (value: unknown): TheatreTaskContext 
     source: text(input.source, 60) || 'unknown',
     appId: text(input.appId, 120) || undefined,
     appVersion: text(input.appVersion, 60) || undefined,
+    recoveryTokenHash: typeof input.recoveryTokenHash === 'string' && /^[a-f0-9]{64}$/i.test(input.recoveryTokenHash) ? input.recoveryTokenHash : undefined,
   };
 };
 
@@ -80,6 +83,7 @@ export async function beginTheatreTaskAudit(input: {
   request: Request;
   idea?: string;
   requestBody?: unknown;
+  attempts?: unknown;
   currentApp?: unknown;
   modelMode?: string;
   model?: string;
@@ -113,6 +117,7 @@ export async function beginTheatreTaskAudit(input: {
       provider: text(input.provider, 80) || undefined,
       apiType: text(input.apiType, 80) || undefined,
       startedAt,
+      attempts: jsonValue(input.attempts) as any || [],
     },
     update: {
       clientTaskId: context.clientTaskId,
@@ -140,7 +145,7 @@ export async function beginTheatreTaskAudit(input: {
       httpStatus: null,
       error: undefined,
       result: undefined,
-      attempts: [],
+      attempts: jsonValue(input.attempts) as any || [],
     },
   });
 }
@@ -223,6 +228,7 @@ const buildTaskProcess = (task: any) => {
     || result.attempts
     || errorDetail.attempts,
   );
+  const build = record(attemptBundle.build || result.build);
   const startedAt = task.startedAt?.toISOString?.() || String(task.startedAt || '');
   const finishedAt = task.finishedAt?.toISOString?.() || (task.finishedAt ? String(task.finishedAt) : null);
   const timeline: Array<Record<string, unknown>> = [
@@ -244,6 +250,13 @@ const buildTaskProcess = (task: any) => {
     },
   ];
 
+  if (build.schemaVersion === 1) {
+    timeline.push({ id: 'build-plan', at: startedAt, stage: 'build_plan', status: 'succeeded', title: '生成偏好与构建路线', summary: String(record(build.selection).reason || '保留既有生成路线'), detail: build });
+    rows(build.stages).filter(value => record(value).name !== 'received').forEach((value, index) => {
+      const item = record(value);
+      timeline.push({ id: `build-stage-${index}`, at: item.finishedAt || item.startedAt, stage: item.name, status: item.status, title: `构建阶段：${item.name}`, summary: `耗时 ${item.durationMs ?? '进行中'} ms`, detail: item });
+    });
+  }
   if (webSearch.triggered === true) {
     const searchResults = rows(webSearch.results);
     const searchStatus = String(webSearch.status || 'failed');
@@ -405,9 +418,11 @@ export async function getTheatreTaskAudit(taskId: string) {
   });
   if (!task) return null;
   const process = buildTaskProcess(task);
+  const buildRecord = record(record(task.attempts).build || record(task.result).build);
   return {
     ...task,
     process,
+    build: buildRecord.schemaVersion === 1 ? buildRecord as unknown as BuildExecution : null,
     startedAt: task.startedAt.toISOString(),
     finishedAt: task.finishedAt?.toISOString() || null,
     createdAt: task.createdAt.toISOString(),

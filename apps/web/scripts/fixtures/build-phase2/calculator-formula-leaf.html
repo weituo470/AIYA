@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>结果容器误判对照</title>
+<style>
+/* ===== 全局基础样式 ===== */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f2f4f8;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #1f2430;
+  font-size: 18px; /* 正文 18px */
+}
+/* 外层容器：限制最大宽度，居中，防止横向溢出 */
+.wrap {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px;
+  width: 100%;
+}
+/* 标题 */
+h1 {
+  font-size: 20px;
+  text-align: center;
+  margin: 8px 0 16px;
+  color: #2b3550;
+}
+/* 显示区 */
+.display {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: right;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+/* 表达式小字 */
+.expr {
+  font-size: 14px; /* 辅助字 14px */
+  color: #8a93a6;
+  min-height: 20px;
+  word-break: break-all;
+}
+/* 主结果大字 */
+.number {
+  font-size: 34px;
+  font-weight: 600;
+  color: #1f2430;
+  word-break: break-all;
+  line-height: 1.2;
+}
+/* 错误状态 */
+.number.error { color: #d64545; font-size: 22px; }
+/* 按钮网格 */
+.pad {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+/* 通用按钮：触控高度 44px 以上 */
+button {
+  font-size: 16px; /* 控件 16px */
+  font-family: inherit;
+  min-height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f2430;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: transform 0.06s ease, background 0.15s ease;
+  padding: 8px 4px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button:active { transform: scale(0.96); }
+/* 数字键 */
+.num { background: #ffffff; }
+/* 运算符键 */
+.op { background: #e8eefc; color: #2b5bd7; font-weight: 600; }
+/* 功能键（清空/退格） */
+.fn { background: #ffe9e9; color: #d64545; font-weight: 600; }
+/* 等号键 */
+.eq { background: #2b5bd7; color: #ffffff; font-weight: 600; }
+/* 跨两列 */
+.span2 { grid-column: span 2; }
+/* 底部提示 */
+.tip {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #8a93a6;
+  text-align: center;
+  line-height: 1.5;
+}
+/* 小屏适配：390px 宽不横向溢出 */
+@media (max-width: 400px) {
+  .wrap { padding: 12px; }
+  .pad { gap: 8px; }
+  .number { font-size: 30px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>简洁计算器</h1>
+
+  <!-- 显示区：data-aiya="display" 供检测使用 -->
+  <div class="display" data-aiya="display">
+    <div class="expr" id="expr"></div>
+    <div class="number" id="answer">0</div>
+  </div>
+
+  <!-- 按钮区 -->
+  <div class="pad">
+    <button class="fn" id="btnClear" aria-label="清空">清空</button>
+    <button class="fn" id="btnBack" aria-label="退格">退格</button>
+    <button class="op" data-op="/" aria-label="除">÷</button>
+    <button class="op" data-op="*" aria-label="乘">×</button>
+
+    <button class="num" data-num="7" aria-label="7">7</button>
+    <button class="num" data-num="8" aria-label="8">8</button>
+    <button class="num" data-num="9" aria-label="9">9</button>
+    <button class="op" data-op="-" aria-label="减">−</button>
+
+    <button class="num" data-num="4" aria-label="4">4</button>
+    <button class="num" data-num="5" aria-label="5">5</button>
+    <button class="num" data-num="6" aria-label="6">6</button>
+    <button class="op" data-op="+" aria-label="加">+</button>
+
+    <button class="num" data-num="1" aria-label="1">1</button>
+    <button class="num" data-num="2" aria-label="2">2</button>
+    <button class="num" data-num="3" aria-label="3">3</button>
+    <button class="eq" id="btnEq" aria-label="等于">=</button>
+
+    <button class="num span2" data-num="0" aria-label="0">0</button>
+    <button class="num" data-num="." aria-label="小数点">.</button>
+    <button class="op" data-op="%" aria-label="取余">%</button>
+  </div>
+
+  <div class="tip">支持加减乘除、小数、清空与退格；除以零会提示错误，点“清空”即可恢复。</div>
+</div>
+
+<script>
+/* 使用 IIFE 包裹，避免污染全局作用域，也不声明 window.history 等同名变量 */
+(function () {
+  'use strict';
+
+  /* ===== 获取页面元素 ===== */
+  var exprEl = document.getElementById('expr');
+  var resultEl = document.getElementById('answer');
+  var btnClear = document.getElementById('btnClear');
+  var btnBack = document.getElementById('btnBack');
+  var btnEq = document.getElementById('btnEq');
+
+  /* ===== 计算器状态 ===== */
+  var current = '0';      /* 当前输入的数字字符串 */
+  var firstNum = null;    /* 第一个操作数 */
+  var operator = null;    /* 当前运算符 */
+  var waiting = false;    /* 是否等待输入第二个操作数 */
+  var hasError = false;   /* 是否处于错误状态 */
+
+  /* ===== 更新显示区 ===== */
+  function render() {
+    resultEl.textContent = current;
+    if (hasError) {
+      resultEl.classList.add('error');
+    } else {
+      resultEl.classList.remove('error');
+    }
+    /* 表达式小字：显示 第一个数 运算符 */
+    if (operator !== null && firstNum !== null) {
+      exprEl.textContent = firstNum + ' ' + operator;
+    } else {
+      exprEl.textContent = '';
+    }
+  }
+
+  /* ===== 输入数字或小数点 ===== */
+  function inputNum(ch) {
+    if (hasError) { return; } /* 错误状态下需先清空 */
+    if (waiting) {
+      /* 刚按过运算符，开始输入第二个数 */
+      current = (ch === '.') ? '0.' : ch;
+      waiting = false;
+    } else {
+      if (ch === '.') {
+        if (current.indexOf('.') !== -1) { return; } /* 已有小数点，忽略 */
+        current = current + '.';
+      } else {
+        if (current === '0') {
+          current = ch;
+        } else {
+          current = current + ch;
+        }
+      }
+    }
+    render();
+  }
+
+  /* ===== 输入运算符 ===== */
+  function inputOp(op) {
+    if (hasError) { return; }
+    var num = parseFloat(current);
+    if (operator !== null && !waiting) {
+      /* 已有运算符且已输入第二个数，先计算 */
+      var r = compute(firstNum, num, operator);
+      if (r === null) { return; } /* 出错已处理 */
+      firstNum = r;
+      current = String(r);
+    } else {
+      firstNum = num;
+    }
+    operator = op;
+    waiting = true;
+    render();
+  }
+
+  /* ===== 执行计算，返回结果或 null（出错） ===== */
+  function compute(a, b, op) {
+    var r;
+    if (op === '+') { r = a + b; }
+    else if (op === '-') { r = a - b; }
+    else if (op === '*') { r = a * b; }
+    else if (op === '/') {
+      if (b === 0) {
+        showError('不能除以零哦');
+        return null;
+      }
+      r = a / b;
+    }
+    else if (op === '%') {
+      if (b === 0) {
+        showError('不能除以零哦');
+        return null;
+      }
+      r = a % b;
+    }
+    else { r = b; }
+    /* 处理浮点误差，保留合理精度 */
+    r = Math.round(r * 1e10) / 1e10;
+    return r;
+  }
+
+  /* ===== 显示错误 ===== */
+  function showError(msg) {
+    hasError = true;
+    current = msg;
+    operator = null;
+    firstNum = null;
+    waiting = false;
+    render();
+  }
+
+  /* ===== 等号 ===== */
+  function equals() {
+    if (hasError) { return; }
+    if (operator === null) { return; }
+    var b = parseFloat(current);
+    var r = compute(firstNum, b, operator);
+    if (r === null) { return; }
+    exprEl.textContent = firstNum + ' ' + operator + ' ' + b + ' =';
+    current = String(r);
+    operator = null;
+    firstNum = null;
+    waiting = false;
+    resultEl.textContent = current;
+    resultEl.classList.remove('error');
+  }
+
+  /* ===== 清空 ===== */
+  function clearAll() {
+    current = '0';
+    firstNum = null;
+    operator = null;
+    waiting = false;
+    hasError = false;
+    render();
+  }
+
+  /* ===== 退格 ===== */
+  function backspace() {
+    if (hasError) { clearAll(); return; }
+    if (waiting) { return; } /* 等待输入第二个数时退格无效 */
+    if (current.length <= 1) {
+      current = '0';
+    } else {
+      current = current.slice(0, -1);
+      if (current === '' || current === '-') { current = '0'; }
+    }
+    render();
+  }
+
+  /* ===== 绑定数字按钮 ===== */
+  var numBtns = document.querySelectorAll('[data-num]');
+  for (var i = 0; i < numBtns.length; i++) {
+    (function (btn) {
+      btn.addEventListener('click', function () {
+        inputNum(btn.getAttribute('data-num'));
+      });
+    })(numBtns[i]);
+  }
+
+  /* ===== 绑定运算符按钮 ===== */
+  var opBtns = document.querySelectorAll('[data-op]');
+  for (var j = 0; j < opBtns.length; j++) {
+    (function (btn) {
+      btn.addEventListener('click', function () {
+        inputOp(btn.getAttribute('data-op'));
+      });
+    })(opBtns[j]);
+  }
+
+  /* ===== 绑定功能按钮 ===== */
+  btnClear.addEventListener('click', clearAll);
+  btnBack.addEventListener('click', backspace);
+  btnEq.addEventListener('click', equals);
+
+  /* ===== 键盘支持（PC 端） ===== */
+  document.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (k >= '0' && k <= '9') { inputNum(k); }
+    else if (k === '.') { inputNum('.'); }
+    else if (k === '+' || k === '-' || k === '*' || k === '/' || k === '%') { inputOp(k); }
+    else if (k === 'Enter' || k === '=') { e.preventDefault(); equals(); }
+    else if (k === 'Backspace') { e.preventDefault(); backspace(); }
+    else if (k === 'Escape') { clearAll(); }
+  });
+
+  /* ===== 初始化显示 ===== */
+  render();
+})();
+</script>
+</body>
+</html>

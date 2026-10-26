@@ -6,6 +6,5 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">#F7FFFB</item>
         <item name="android:navigationBarColor">#FFFFFF</item>
-        <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang='zh-CN'>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'>
+  <title>手机四则计算器</title>
+  <style>
+    /* 统一设置盒模型，让宽度和内边距更容易计算。 */
+    * { box-sizing: border-box; }
+
+    /* 页面使用柔和背景，并保证在手机上可以完整显示。 */
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(145deg, #e8f2ff, #f8fbff 48%, #e9fff8);
+      color: #172033;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* 主容器限制最大宽度，在大屏上不会过宽，在手机上会自动缩小。 */
+    .app {
+      width: min(100%, 480px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 18px 14px calc(24px + env(safe-area-inset-bottom));
+    }
+
+    /* 顶部标题区域。 */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .title-group h1 {
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: 1px;
+    }
+
+    .title-group p {
+      margin: 5px 0 0;
+      color: #667085;
+      font-size: 13px;
+    }
+
+    /* 计算器卡片提供清晰的视觉边界。 */
+    .calculator-card {
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .9);
+      border-radius: 26px;
+      background: rgba(255, 255, 255, .84);
+      box-shadow: 0 18px 50px rgba(36, 73, 115, .16);
+      backdrop-filter: blur(8px);
+    }
+
+    /* 显示区把表达式和结果分开，结果数字更醒目。 */
+    .display-panel {
+      padding: 22px 20px 18px;
+      background: #17253d;
+      color: white;
+    }
+
+    .expression {
+      min-height: 23px;
+      color: #aebbd0;
+      font-size: 14px;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    .result-label {
+      margin-top: 9px;
+      color: #87e8cd;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .display {
+      min-height: 58px;
+      margin-top: 2px;
+      font-size: clamp(34px, 10vw, 48px);
+      font-weight: 750;
+      line-height: 1.18;
+      text-align: right;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .status {
+      min-height: 20px;
+      margin: 7px 0 0;
+      color: #ffcf75;
+      font-size: 13px;
+      text-align: right;
+    }
+
+    /* 按钮区域使用网格，所有主要触控按钮都保持较大的点击面积。 */
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 16px;
+    }
+
+    button {
+      min-height: 56px;
+      border: 0;
+      border-radius: 16px;
+      color: #172033;
+      background: #f0f4fa;
+      box-shadow: inset 0 -2px 0 rgba(26, 45, 75, .07);
+      font: inherit;
+      font-size: 21px;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .12s ease, filter .12s ease, background .12s ease;
+    }
+
+    button:hover { filter: brightness(.98); }
+    button:active { transform: scale(.95); }
+    button:focus-visible { outline: 3px solid #70b7ff; outline-offset: 2px; }
+
+    /* 功能键使用蓝色，运算符使用青绿色，等号使用更醒目的颜色。 */
+    .utility { color: #24558e; background: #dcecff; font-size: 16px; }
+    .operator { color: #086b61; background: #d9f7ef; }
+    .equals { color: white; background: #157a9e; }
+    .zero { grid-column: span 2; }
+
+    /* 历史记录区域单独放在卡片下方，最新记录排在最上面。 */
+    .history-panel {
+      margin-top: 14px;
+      padding: 17px 18px;
+      border: 1px solid rgba(255, 255, 255, .9);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, .84);
+      box-shadow: 0 12px 30px rgba(36, 73, 115, .1);
+    }
+
+    .history-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .history-title {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .history-count {
+      color: #667085;
+      font-size: 12px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 230px;
+      margin: 12px 0 0;
+      padding: 0;
+      overflow: auto;
+      list-style: none;
+    }
+
+    .history-list li,
+    .empty-history {
+      padding: 11px 12px;
+      border-radius: 12px;
+      color: #3b4960;
+      background: #f4f8fc;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .empty-history {
+      color: #8995a8;
+      text-align: center;
+    }
+
+    .tip {
+      margin: 14px 2px 0;
+      color: #748197;
+      font-size: 12px;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    /* 在较小屏幕上适当缩小间距，但保留足够大的触控按钮。 */
+    @media (max-width: 360px) {
+      .app { padding-left: 10px; padding-right: 10px; }
+      .keypad { gap: 7px; padding: 12px; }
+      button { min-height: 52px; }
+      .display-panel { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class='app'>
+    <header class='topbar'>
+      <div class='title-group'>
+        <h1>四则运算</h1>
+        <p>离线计算器 · 手机友好</p>
+      </div>
+    </header>
+
+    <section class='calculator-card' aria-label='四则运算计算器'>
+      <div class='display-panel'>
+        <div id='expression' class='expression' aria-label='当前表达式'>准备开始</div>
+        <div class='result-label'>结果</div>
+        <div id='display' class='display' aria-live='polite'>0</div>
+        <div id='status' class='status' aria-live='polite'></div>
+      </div>
+
+      <div class='keypad' aria-label='计算器按钮区'>
+        <button type='button' class='utility' data-action='clear' aria-label='清空'>清空</button>
+        <button type='button' class='utility' data-action='backspace' aria-label='退格'>退格</button>
+        <button type='button' class='utility' data-action='decimal' aria-label='小数点'>小数点</button>
+        <button type='button' class='operator' data-action='operator' data-value='divide' aria-label='除法'>÷</button>
+
+        <button type='button' data-action='digit' data-value='7'>7</button>
+        <button type='button' data-action='digit' data-value='8'>8</button>
+        <button type='button' data-action='digit' data-value='9'>9</button>
+        <button type='button' class='operator' data-action='operator' data-value='multiply' aria-label='乘法'>×</button>
+
+        <button type='button' data-action='digit' data-value='4'>4</button>
+        <button type='button' data-action='digit' data-value='5'>5</button>
+        <button type='button' data-action='digit' data-value='6'>6</button>
+        <button type='button' class='operator' data-action='operator' data-value='subtract' aria-label='减法'>−</button>
+
+        <button type='button' data-action='digit' data-value='1'>1</button>
+        <button type='button' data-action='digit' data-value='2'>2</button>
+        <button type='button' data-action='digit' data-value='3'>3</button>
+        <button type='button' class='operator' data-action='operator' data-value='add' aria-label='加法'>＋</button>
+
+        <button type='button' class='zero' data-action='digit' data-value='0'>0</button>
+        <button type='button' class='equals' data-action='equals' aria-label='等于'>＝</button>
+      </div>
+    </section>
+
+    <section class='history-panel' aria-label='计算历史'>
+      <div class='history-title-row'>
+        <h2 class='history-title'>历史</h2>
+        <span id='historyCount' class='history-count'>0 条记录</span>
+      </div>
+      <ul id='historyList' class='history-list'>
+        <li class='empty-history'>暂无历史记录</li>
+      </ul>
+    </section>
+
+    <p class='tip'>提示：电脑可用数字键、加减乘除、回车和退格键操作</p>
+  </main>
+
+  <script>
+    /* 获取页面中需要反复更新的元素，后面的函数会使用这些引用。 */
+    const displayElement = document.querySelector('#display');
+    const expressionElement = document.querySelector('#expression');
+    const statusElement = document.querySelector('#status');
+    const historyListElement = document.querySelector('#historyList');
+    const historyCountElement = document.querySelector('#historyCount');
+
+    /* 这些变量代表计算器当前的记忆状态。所有状态只存在于内存中，不会保存到设备。 */
+    let displayValue = '0';
+    let firstValue = null;
+    let pendingOperator = null;
+    let waitingForOperand = false;
+    let hasError = false;
+    let expressionLine = '准备开始';
+    let historyRecords = [];
+
+    /* 把内部运算名称转换成用户熟悉的数学符号。 */
+    const operationLabels = {
+      add: '＋',
+      subtract: '−',
+      multiply: '×',
+      divide: '÷'
+    };
+
+    /* 轻量设备判断：触摸设备使用更宽松的手机布局，大屏设备也能正常运行。 */
+    const isTouchLayout = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 700;
+    document.body.classList.toggle('touch-layout', isTouchLayout);
+
+    /* 将数字整理成适合显示的文字，避免出现过长的浮点误差。 */
+    function formatNumber(value) {
+      if (!Number.isFinite(value)) {
+        return '错误';
+      }
+      const rounded = Number(value.toFixed(10));
+      return String(rounded);
+    }
+
+    /* 执行一次基本四则运算。除数为零时返回空值，让上层显示友好提示。 */
+    function calculate(left, right, operator) {
+      if (operator === 'add') {
+        return left + right;
+      }
+      if (operator === 'subtract') {
+        return left - right;
+      }
+      if (operator === 'multiply') {
+        return left * right;
+      }
+      if (operator === 'divide') {
+        if (right === 0) {
+          return null;
+        }
+        return left / right;
+      }
+      return right;
+    }
+
+    /* 触发很短的成功反馈，设备不支持时不会影响计算器使用。 */
+    function giveSuccessFeedback() {
+      if ('vibrate' in navigator) {
+        navigator.vibrate(18);
+      }
+    }
+
+    /* 将当前状态完整绘制到页面上。 */
+    function render() {
+      displayElement.textContent = displayValue;
+      expressionElement.textContent = expressionLine;
+      statusElement.textContent = hasError ? '请点击清空后继续' : '';
+      historyCountElement.textContent = historyRecords.length + ' 条记录';
+      historyListElement.innerHTML = '';
+
+      /* 历史为空时显示说明文字，否则按时间倒序创建记录。 */
+      if (historyRecords.length === 0) {
+        const emptyItem = document.createElement('li');
+        emptyItem.className = 'empty-history';
+        emptyItem.textContent = '暂无历史记录';
+        historyListElement.appendChild(emptyItem);
+        return;
+      }
+
+      historyRecords.forEach(function(record) {
+        const item = document.createElement('li');
+        item.textContent = record;
+        historyListElement.appendChild(item);
+      });
+    }
+
+    /* 把计算器恢复到最初状态。历史记录会保留，方便继续查看。 */
+    function clearCalculator() {
+      displayValue = '0';
+      firstValue = null;
+      pendingOperator = null;
+      waitingForOperand = false;
+      hasError = false;
+      expressionLine = '准备开始';
+      render();
+    }
+
+    /* 输入数字时，如果刚完成一次运算，就从新的数字开始输入。 */
+    function inputDigit(digit) {
+      if (hasError) {
+        clearCalculator();
+      }
+      if (waitingForOperand) {
+        displayValue = digit;
+        waitingForOperand = false;
+      } else if (displayValue === '0') {
+        displayValue = digit;
+      } else if (displayValue.length < 18) {
+        displayValue += digit;
+      }
+      expressionLine = pendingOperator === null ? '正在输入数字' : expressionLine;
+      render();
+    }
+
+    /* 输入小数点，并避免同一个数字出现两个小数点。 */
+    function inputDecimal() {
+      if (hasError) {
+        clearCalculator();
+      }
+      if (waitingForOperand) {
+        displayValue = '0.';
+        waitingForOperand = false;
+      } else if (!displayValue.includes('.')) {
+        displayValue += '.';
+      }
+      render();
+    }
+
+    /* 删除最后一个字符，退格后至少保留一个可计算的数字。 */
+    function backspace() {
+      if (hasError) {
+        clearCalculator();
+        return;
+      }
+      if (waitingForOperand) {
+        displayValue = '0';
+      } else if (displayValue.length <= 1 || (displayValue.length === 2 && displayValue.startsWith('-'))) {
+        displayValue = '0';
+      } else {
+        displayValue = displayValue.slice(0, -1);
+      }
+      render();
+    }
+
+    /* 显示除以零的错误，并停止本次计算，直到用户清空或重新输入。 */
+    function showDivisionError() {
+      displayValue = '不能除以零';
+      expressionLine = '除法错误';
+      hasError = true;
+      firstValue = null;
+      pendingOperator = null;
+      waitingForOperand = true;
+      render();
+    }
+
+    /* 选择运算符时，如果前面已有完整运算，就先算出中间结果，实现连续运算。 */
+    function chooseOperator(operator) {
+      if (hasError) {
+        return;
+      }
+
+      const currentValue = Number(displayValue);
+      if (!Number.isFinite(currentValue)) {
+        return;
+      }
+
+      if (firstValue === null) {
+        firstValue = currentValue;
+      } else if (pendingOperator !== null && !waitingForOperand) {
+        const middleResult = calculate(firstValue, currentValue, pendingOperator);
+        if (middleResult === null) {
+          showDivisionError();
+          return;
+        }
+        firstValue = middleResult;
+        displayValue = formatNumber(middleResult);
+      }
+
+      pendingOperator = operator;
+      waitingForOperand = true;
+      expressionLine = formatNumber(firstValue) + ' ' + operationLabels[operator];
+      render();
+    }
+
+    /* 点击等号时完成当前运算，并把结果加入历史记录。 */
+    function finishCalculation() {
+      if (hasError || pendingOperator === null || firstValue === null) {
+        return;
+      }
+
+      const left = firstValue;
+      const right = waitingForOperand ? firstValue : Number(displayValue);
+      const operator = pendingOperator;
+      const result = calculate(left, right, operator);
+
+      if (result === null) {
+        showDivisionError();
+        return;
+      }
+
+      const expression = formatNumber(left) + ' ' + operationLabels[operator] + ' ' + formatNumber(right);
+      const resultText = formatNumber(result);
+      historyRecords.unshift(expression + ' ＝ ' + resultText);
+      historyRecords = historyRecords.slice(0, 20);
+
+      displayValue = resultText;
+      expressionLine = expression + ' ＝';
+      firstValue = null;
+      pendingOperator = null;
+      waitingForOperand = true;
+      render();
+      giveSuccessFeedback();
+    }
+
+    /* 统一处理按钮点击，根据按钮上的 data 属性调用对应功能。 */
+    document.querySelectorAll('[data-action]').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const action = button.dataset.action;
+        if (action === 'digit') {
+          inputDigit(button.dataset.value);
+        } else if (action === 'decimal') {
+          inputDecimal();
+        } else if (action === 'backspace') {
+          backspace();
+        } else if (action === 'clear') {
+          clearCalculator();
+        } else if (action === 'operator') {
+          chooseOperator(button.dataset.value);
+        } else if (action === 'equals') {
+          finishCalculation();
+        }
+      });
+    });
+
+    /* 支持电脑键盘输入，同时阻止退格键和斜杠键带来浏览器默认行为。 */
+    document.addEventListener('keydown', function(event) {
+      const key = event.key;
+      if (key >= '0' && key <= '9') {
+        event.preventDefault();
+        inputDigit(key);
+      } else if (key === '.' || key === '。') {
+        event.preventDefault();
+        inputDecimal();
+      } else if (key === '+') {
+        event.preventDefault();
+        chooseOperator('add');
+      } else if (key === '-') {
+        event.preventDefault();
+        chooseOperator('subtract');
+      } else if (key === '*' || key === '×') {
+        event.preventDefault();
+        chooseOperator('multiply');
+      } else if (key === '/') {
+        event.preventDefault();
+        chooseOperator('divide');
+      } else if (key === 'Enter' || key === '=') {
+        event.preventDefault();
+        finishCalculation();
+      } else if (key === 'Backspace') {
+        event.preventDefault();
+        backspace();
+      } else if (key === 'Escape') {
+        event.preventDefault();
+        clearCalculator();
+      }
+    });
+
+    /* 首次加载时绘制初始界面。 */
+    render();
+  </script>
+</body>
+</html>

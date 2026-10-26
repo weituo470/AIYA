@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { actualTaskReply, isTaskStatusQuestion, resolveGenerationDecision, truthfulTeacherReply } from '../src/app/_shared/teacher-task-state';
+import { POST } from '../src/app/api/teacher-agent/route';
+const results: {name:string;passed:boolean}[]=[];
+const test=async(name:string,fn:()=>unknown)=>{await fn();results.push({name,passed:true});console.log('PASS',name)};
+const base={isActive:false,hasCurrentApp:true,wantsNewApp:false,wantsRevision:false,wantsFirstBuild:false,userText:'给我复刻一个超级玛丽'};
+await test('reproduced second task: model start_generation creates NEW project despite existing app',()=>assert.deepEqual(resolveGenerationDecision({...base,nextAction:'start_generation'}),{shouldStart:true,shouldReplaceCurrentApp:true}));
+await test('incremental modification preserves current project',()=>assert.deepEqual(resolveGenerationDecision({...base,userText:'加一个重新开始按钮',wantsRevision:true,nextAction:'revise'}),{shouldStart:true,shouldReplaceCurrentApp:false}));
+await test('first creation starts without old artwork',()=>assert.deepEqual(resolveGenerationDecision({...base,hasCurrentApp:false,nextAction:'start_generation'}),{shouldStart:true,shouldReplaceCurrentApp:false}));
+await test('active generation cannot start overlapping task',()=>assert.equal(resolveGenerationDecision({...base,isActive:true,nextAction:'start_generation'}).shouldStart,false));
+await test('name input cannot execute a hallucinated start command',()=>assert.equal(resolveGenerationDecision({...base,userText:'君维',profileOnly:true,nextAction:'start_generation'}).shouldStart,false));
+await test('status inquiry cannot execute a hallucinated start command',()=>assert.equal(resolveGenerationDecision({...base,userText:'好了吗？',nextAction:'start_generation'}).shouldStart,false));
+await test('status question does not swallow a real build request',()=>{assert(isTaskStatusQuestion('好了吗？'));assert(!isTaskStatusQuestion('做一个倒计时，提示还要多久'));});
+await test('state distinguishes running, checking, failed, cancelled, idle',()=>{assert(actualTaskReply({jobStatus:'running'}).includes('进行中'));assert(actualTaskReply({jobStatus:'running',jobStage:'validating'}).includes('检查'));assert(actualTaskReply({jobStatus:'failed'}).includes('失败'));assert(actualTaskReply({jobStatus:'cancelled'}).includes('撤销'));assert(actualTaskReply({jobStatus:'succeeded',currentAppTitle:'抽签'}).includes('没有正在运行'));});
+await test('old promise is not evidence of active coding',()=>{assert(truthfulTeacherReply('君维，小游戏我还在写，做好马上喊你来试。',{jobStatus:'succeeded',currentAppTitle:'抽签'}).includes('没有正在运行'));assert(truthfulTeacherReply('现在开始写第1版',{jobStatus:'succeeded'},true).includes('准备提交'));});
+await test('blocked action cannot retain a submission promise',()=>assert(truthfulTeacherReply('收到，准备提交这个需求。',{jobStatus:'succeeded',currentAppTitle:'抽签'},false).includes('没有正在运行')));
+for(const name of ['create-theatre','create-theatre-v2'])await test(`${name} wires shared decisions, real progress and finite conversational timeout`,()=>{const src=readFileSync(resolve('src/app',name,'CreateTheatreClient.tsx'),'utf8');assert(src.includes('resolveGenerationDecision({'));assert(src.includes("source: 'actual-task-state'"));assert(src.includes('AbortSignal.timeout(35000)'));assert(!src.includes('currentApp?.html ? agentWantsRevision : wantsFirstBuild'));assert(!src.includes('effectiveCurrentApp?.html ? agentWantsRevision : wantsFirstBuild'));});
+const originalFetch=globalThis.fetch;
+try {
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;throw Error('progress must not call model')};
+ for(const status of ['running','succeeded','failed','']) await test(`API progress ${status||'idle'} is local and cannot replay chat promise`,async()=>{const r=await POST(new Request('http://local/api/teacher-agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({phase:'chat',userText:'好了吗？',jobStatus:status,currentAppTitle:'抽签',chatHistory:[{role:'teacher',text:'我还在写超级玛丽'}]})}));const d=await r.json();assert.equal(r.status,200);assert.equal(d.model,'actual-task-state');assert.equal(d.nextAction,'chat');assert.equal(calls,0);});
+ process.env.AIYA_TEACHER_AGENT_MODEL='test-only-model';process.env.AIYA_TEACHER_AGENT_BASE_URL='https://example.invalid';process.env.AIYA_TEACHER_AGENT_API_KEY='test-only';process.env.AIYA_TEACHER_AGENT_PROVIDER='http';process.env.AIYA_TEACHER_AGENT_API_TYPE='openai';
+ globalThis.fetch=async()=>Response.json({choices:[{message:{content:JSON.stringify({reply:'我现在开始写第1版代码。',nextAction:'start_generation',suggestedPrompt:'原创横版跳跃游戏'})}}]});
+ await test('API generation proposal keeps action but cannot claim accepted coding',async()=>{const r=await POST(new Request('http://local/api/teacher-agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({phase:'chat',userText:base.userText,currentAppTitle:'抽签',jobStatus:'succeeded'})}));const d=await r.json();assert.equal(d.nextAction,'start_generation');assert(d.reply.includes('准备提交'));assert(!d.reply.includes('开始写'));});
+} finally { globalThis.fetch=originalFetch; }
+mkdirSync('../../outputs/dialogue-fix',{recursive:true});writeFileSync('../../outputs/dialogue-fix/unit-results.json',JSON.stringify({passed:true,count:results.length,results},null,2));
+console.log(`PASS ${results.length} regressions`);

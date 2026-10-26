@@ -46,7 +46,9 @@ export const resolveHermesChatUrl = (baseUrl: string) => {
   return `${base}/v1/chat/completions`;
 };
 
-export const shouldUseHermesResponsesApi = (model: string) => /^gpt-5\.6-(?:sol|terra|luna)$/i.test(model.trim());
+export const shouldUseHermesResponsesApi = (model: string) => /^(?:gpt-5\.6-(?:sol|terra|luna)|gpt-6-astra)$/i.test(model.trim());
+
+export const hermesReasoningEffort = (model: string) => /^gpt-6-astra$/i.test(model.trim()) ? 'high' : 'low';
 
 export const resolveHermesResponsesUrl = (baseUrl: string) => {
   const base = validateBaseUrl(baseUrl);
@@ -76,7 +78,7 @@ const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: numbe
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, signal: controller.signal, cache: 'no-store' });
+    return await fetch(url, { ...init, redirect: 'error', signal: controller.signal, cache: 'no-store' });
   } finally {
     clearTimeout(timer);
   }
@@ -189,9 +191,10 @@ export const chatWithHermesModel = async (
       ? {
           model,
           input: messages.map((message) => ({ role: message.role, content: message.content })),
-          reasoning: { effort: 'low' },
+          reasoning: { effort: hermesReasoningEffort(model) },
           max_output_tokens: options.maxTokens ?? 1200,
           stream: false,
+          store: false,
         }
       : {
           model,
@@ -268,16 +271,18 @@ export const testHermesModelConnection = async (
       body: JSON.stringify(responsesMode
         ? {
             model,
-            input: 'Reply with exactly AIYA_OK.',
-            reasoning: { effort: 'low' },
-            max_output_tokens: 64,
+            input: [{ role: 'user', content: 'Reply with exactly AIYA_OK.' }],
+            reasoning: { effort: hermesReasoningEffort(model) },
+            max_output_tokens: 2048,
             stream: false,
+            store: false,
           }
         : {
             model,
             messages: [{ role: 'user', content: 'Reply with exactly AIYA_OK.' }],
             temperature: 0,
-            max_tokens: 16,
+            max_tokens: model === 'fusion-max-2.0' ? 1024 : 16,
+            ...(model === 'fusion-max-2.0' ? { reasoning_effort: 'low' } : {}),
             stream: false,
           }),
     }, 45_000);
@@ -289,7 +294,8 @@ export const testHermesModelConnection = async (
       ? readResponsesContent(json)
       : String(message?.content || json.output_text || '').trim();
     completion = {
-      ok: response.ok && Boolean(content || choices.length),
+      ok: response.ok && Boolean(content || (model !== 'fusion-max-2.0' && choices.length))
+        && (model !== 'fusion-max-2.0' || json.model === model),
       url: completionUrl,
       status: response.status,
       durationMs: Date.now() - completionStartedAt,

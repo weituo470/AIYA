@@ -30,6 +30,9 @@ jobs:
       - run: pnpm --filter @aiya/dev-runner lint
       - run: pnpm --filter @aiya/apk-builder lint
       - run: pnpm test:create-theatre-core
+      - run: pnpm --filter @aiya/web test:build-phase1
+      - run: pnpm --filter @aiya/web test:fusion-transport
+      - run: node apps/android-v3/scripts/verify-generated-preview.mjs
       - run: pnpm test:apk-builder
       - run: pnpm --filter @aiya/web build
 
@@ -53,3 +56,4 @@ jobs:
       - run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm --filter @aiya/android-v3 typecheck
+      - run: pnpm --filter @aiya/android-v3 test

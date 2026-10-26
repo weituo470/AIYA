@@ -7,7 +7,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-export const createTheatreModelModes = ['default', 'fast', 'quality'] as const;
+export const createTheatreModelModes = ['default', 'fast', 'quality', 'fusion'] as const;
 export type CreateTheatreModelMode = (typeof createTheatreModelModes)[number];
 
 export type HermesModelProfile = {
@@ -50,6 +50,8 @@ export type CreateTheatreRuntimeModelConfig = {
   maxTokens: number;
   jsonMode: boolean;
   thinkingMode: string;
+  stream?: boolean;
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'max';
   source: 'admin-profile' | 'environment';
 };
 
@@ -92,12 +94,13 @@ export const defaultCreateTheatreAdminSettings: CreateTheatreAdminSettings = {
     default: emptyProfile(),
     fast: emptyProfile(),
     quality: emptyProfile(),
+    fusion: emptyProfile(),
   },
 };
 
 const settingsFilePath = () =>
   process.env.CREATE_THEATRE_SETTINGS_FILE ||
-  join(process.cwd(), '.state', 'create-theatre', 'admin-settings.json');
+  join(/* turbopackIgnore: true */ process.cwd(), '.state', 'create-theatre', 'admin-settings.json');
 
 const encryptionSecret = () =>
   process.env.CREATE_THEATRE_SETTINGS_ENCRYPTION_KEY ||
@@ -158,6 +161,27 @@ export const resolveCreateTheatreRuntimeModelConfig = (
 ): CreateTheatreRuntimeModelConfig => {
   const selectedModelMode = normalizeCreateTheatreModelMode(modelMode);
   const hasAdminHermes = Boolean(hermesProfile?.baseUrl && hermesProfile?.model);
+  // Fusion has its own enterprise credential. Never inherit another provider's key
+  // or silently make an unconfigured Fusion option look available.
+  if (selectedModelMode === 'fusion') {
+    const outputLimit = Number(env('AIYA_FUSION_MAX_TOKENS') || '32768');
+    const effort = env('AIYA_FUSION_REASONING_EFFORT');
+    return {
+      baseUrl: (hermesProfile?.baseUrl || env('AIYA_FUSION_BASE_URL') || 'https://api.fumolab.ai/v1').replace(/\/+$/, ''),
+      apiKey: hermesProfile?.apiKey || env('AIYA_FUSION_API_KEY'),
+      model: hermesProfile?.model || 'fusion-max-2.0',
+      modelMode: 'fusion', apiType: 'openai', provider: 'http',
+      cliCommand: '', cliProvider: '',
+      timeoutMs: Number.parseInt(env('AIYA_TEACHER_CODER_TIMEOUT_MS') || '240000', 10),
+      maxTurns: Number.parseInt(env('AIYA_TEACHER_CODER_MAX_TURNS') || '12', 10),
+      maxTokens: Number.isFinite(outputLimit) ? Math.floor(Math.max(8192, Math.min(65536, outputLimit))) : 32768,
+      jsonMode: env('AIYA_TEACHER_CODER_JSON_MODE') !== '0',
+      thinkingMode: '',
+      stream: env('AIYA_FUSION_STREAM') !== '0',
+      reasoningEffort: ['low', 'medium', 'high', 'max'].includes(effort) ? effort as 'low' | 'medium' | 'high' | 'max' : 'low',
+      source: hasAdminHermes ? 'admin-profile' : 'environment',
+    };
+  }
   const baseUrl = (
     (hasAdminHermes ? hermesProfile?.baseUrl : '') ||
     env('AIYA_TEACHER_CODER_BASE_URL') ||
@@ -260,6 +284,7 @@ export const normalizeCreateTheatreAdminSettings = (
       default: normalizeProfile(profiles.default),
       fast: normalizeProfile(profiles.fast),
       quality: normalizeProfile(profiles.quality),
+      fusion: normalizeProfile(profiles.fusion),
     },
     updatedAt: value.updatedAt,
   };
@@ -283,6 +308,10 @@ const fromStoredSettings = (value: StoredCreateTheatreAdminSettings): CreateThea
       quality: {
         ...profiles.quality,
         apiKey: decryptApiKey(profiles.quality?.apiKeyEncrypted),
+      },
+      fusion: {
+        ...profiles.fusion,
+        apiKey: decryptApiKey(profiles.fusion?.apiKeyEncrypted),
       },
     },
   });
@@ -310,6 +339,12 @@ const toStoredSettings = (value: CreateTheatreAdminSettings): StoredCreateTheatr
       model: value.hermesProfiles.quality.model,
       apiKeyEncrypted: encryptApiKey(value.hermesProfiles.quality.apiKey),
       updatedAt: value.hermesProfiles.quality.updatedAt,
+    },
+    fusion: {
+      baseUrl: value.hermesProfiles.fusion.baseUrl,
+      model: value.hermesProfiles.fusion.model,
+      apiKeyEncrypted: encryptApiKey(value.hermesProfiles.fusion.apiKey),
+      updatedAt: value.hermesProfiles.fusion.updatedAt,
     },
   },
 });
@@ -350,13 +385,16 @@ export const toPublicCreateTheatreAdminSettings = (
       default: publicProfile(settings.hermesProfiles.default),
       fast: publicProfile(settings.hermesProfiles.fast),
       quality: publicProfile(settings.hermesProfiles.quality),
+      fusion: publicProfile(settings.hermesProfiles.fusion),
     },
   };
 };
 
 export const readCreateTheatreAdminSettings = async (): Promise<CreateTheatreAdminSettings> => {
   try {
-    const raw = await readFile(settingsFilePath(), 'utf8');
+    // This is private runtime state, possibly symlinked outside the release.
+    const runtimeSettingsPath = settingsFilePath();
+    const raw = await readFile(/* turbopackIgnore: true */ runtimeSettingsPath, 'utf8');
     return fromStoredSettings(JSON.parse(raw) as StoredCreateTheatreAdminSettings);
   } catch {
     return normalizeCreateTheatreAdminSettings(defaultCreateTheatreAdminSettings);
@@ -394,6 +432,7 @@ export const writeCreateTheatreAdminSettings = async (
       default: mergeProfile('default'),
       fast: mergeProfile('fast'),
       quality: mergeProfile('quality'),
+      fusion: mergeProfile('fusion'),
     },
     updatedAt: now,
   });

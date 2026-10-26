@@ -149,6 +149,9 @@ const toPublicRuntimeModels = (settings: Awaited<ReturnType<typeof readCreateThe
   quality: toPublicCreateTheatreRuntimeModelConfig(
     resolveCreateTheatreRuntimeModelConfig('quality', settings.hermesProfiles.quality),
   ),
+    fusion: toPublicCreateTheatreRuntimeModelConfig(
+      resolveCreateTheatreRuntimeModelConfig('fusion', settings.hermesProfiles.fusion),
+    ),
 });
 
 const assertAdmin = (request: NextRequest) => {
